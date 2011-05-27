@@ -19,8 +19,11 @@ function pline_2() {
 source s3.ebasename.sh
 if [ "$PLINE" == $( ebasename $0 ) ]; then
 	#Not sourced, do something with this.
+	
+	tty -s; ATTY="$?"
+	ISATTY="$ATTY -eq 0"
 
-	if [ -z "$(tty)" ]; then
+	if [ ! $ISATTY ]; then
 		#This is an piped input
 		FILENAME="--"
 		START="${1}"
