@@ -10,13 +10,13 @@ Find a filename fitting the regex_pattern upwards in file-system.
 
 Options:
   -d		Start directory
-  -t c          Target is of type c
-  	d		directory
 
-	f		regular file (default)
+  -t c      Target is of type c
+  	d		  directory
+	f		  regular file (default)
 
 Example:
-  $FIND_SH_INFO -D /lib/modules/2.6.32-36-generic/ -t d udev
+  $FIND_SH_INFO -d /lib/modules/2.6.32-36-generic/ -t d udev
 
 EOF
 }

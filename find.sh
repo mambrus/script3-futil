@@ -35,7 +35,7 @@ if [ "$FIND_SH" == $( ebasename $0 ) ]; then
 	#Not sourced, do something with this.
 
 	FIND_SH_INFO=${FIND_SH}
-	source futil.ui.find.sh
+	source .futil.ui..find.sh
 
 	LAST_PATH=`pwd`
 
