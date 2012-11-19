@@ -20,6 +20,9 @@ source s3.ebasename.sh
 if [ "$PLINE" == $( ebasename $0 ) ]; then
 	#Not sourced, do something with this.
 	
+	PLINE_SH_INFO=${PLINE_SH}
+	source .futil.ui..pline.sh
+	
 	tty -s; ATTY="$?"
 	ISATTY="$ATTY -eq 0"
 
