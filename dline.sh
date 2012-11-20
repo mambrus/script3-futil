@@ -1,27 +1,27 @@
 #!/bin/bash
 # Author: Michael Ambrus (michael.ambrus@sonyericsson.com)
-# 2011-05-27
-# Wraps sed's printing of lines by numbers or regexps
+# 2012-11-20
+# Wraps sed's deletion of lines by numbers or regexps
 
-if [ -z $PLINE_SH ]; then
+if [ -z $DLINE_SH ]; then
 
-PLINE_SH="pline.sh"
+DLINE_SH="dline.sh"
 
 #One address version
-function pline_1() {
-	cat $1 | sed -ne "${2}P"
+function dline_1() {
+	cat $1 | sed -e "${2}d"
 }
 
 #Two address version
-function pline_2() {
-	cat $1 | sed -ne "${2},${3}P"
+function dline_2() {
+	cat $1 | sed -e "${2},${3}d"
 }
 source s3.ebasename.sh
-if [ "$PLINE_SH" == $( ebasename $0 ) ]; then
+if [ "$DLINE_SH" == $( ebasename $0 ) ]; then
 	#Not sourced, do something with this.
 
-	PLINE_SH_INFO=${PLINE_SH}
-	source .futil.ui..pline.sh
+	DLINE_SH_INFO=${DLINE_SH}
+	source .futil.ui..dline.sh
 
 	tty -s; ATTY="$?"
 	ISATTY="$ATTY -eq 0"
@@ -37,7 +37,7 @@ if [ "$PLINE_SH" == $( ebasename $0 ) ]; then
 			START="${2}"
 			END="${3}"
 		else
-			echo "Syntax error: $PLINE_SH [FILE] start [stop]" >&2
+			echo "Syntax error: $DLINE_SH [FILE] start [stop]" >&2
 			exit 1
 		fi
 		if [ ! -f $FILENAME ]; then
@@ -55,9 +55,9 @@ if [ "$PLINE_SH" == $( ebasename $0 ) ]; then
 	fi
 
 	if [ "X${END}" == "X" ]; then
-		pline_1 "$FILENAME" "${START}"
+		dline_1 "$FILENAME" "${START}"
 	else
-		pline_2 "$FILENAME" "${START}" "${END}"
+		dline_2 "$FILENAME" "${START}" "${END}"
 	fi
 
 	exit $?

@@ -1,13 +1,13 @@
-# UI part of futil.pline.sh
+# UI part of futil.dline.sh
 # This is not even a script, stupid and can't exist alone. It is purely
 # ment for beeing included.
 
-function print_pline_help() {
+function print_dline_help() {
 			cat <<EOF
 Usage: $PLINE_SH_INFO [options] -- </regexp/><line-num> [</regexp/><line-num>]
 
-Cut out a section of text from a file. It's basically sed, but with a better
-UI. Normally section to cut are given as line-numbers, but instead of
+Deletes a section of text from a file. It's basically sed, but with a better
+UI. Normally sections to delete are given as line-numbers, but instead of
 linenumbers, text-markers can be given. If so, they have to be given in regexp
 form and they have to be surrounded by '/'.
 
@@ -20,10 +20,10 @@ Options:
 
 Example:
   $PLINE_SH_INFO -f text.txt 10 20
-  #Return lines 10..20 from file text.txt
+  #Deletes lines 10..20 from file text.txt
 
   $PLINE_SH_INFO '/<manifest>/' '/\/<manifest>/' < manifest.xml
-  #Plint only the manifest content from a repo manifest file
+  #Prints everything but manifest content from a repo manifest file
 
 EOF
 }
@@ -31,7 +31,7 @@ EOF
 		case $OPTION in
 		h)
 			clear
-			print_pline_help $0
+			print_dline_help $0
 			exit 0
 			;;
 		f)
@@ -39,7 +39,7 @@ EOF
 			;;
 		?)
 			echo "Syntax error:" 1>&2
-			print_pline_help $0 1>&2
+			print_dline_help $0 1>&2
 			exit 2
 			;;
 
@@ -49,7 +49,7 @@ EOF
 
 	if [ $# = 0 ]; then
 		echo "Syntax error: Marker(s) are mandatory" 1>&2
-		print_pline_help $0 1>&2
+		print_dline_help $0 1>&2
 		exit 2
 	fi
 
