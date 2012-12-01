@@ -1,4 +1,6 @@
 .dline.sh
 .find.sh
 .nchew.sh
+.onfile.sh
 .pline.sh
+.tmpname.sh
