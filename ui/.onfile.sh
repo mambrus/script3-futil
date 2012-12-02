@@ -41,7 +41,6 @@ Examples:
 
 EOF
 }
-#echo "X OPTIND: $OPTIND"
 	while getopts f:hvx OPTION; do
 		case $OPTION in
 		h)
@@ -50,14 +49,12 @@ EOF
 			exit 0
 			;;
 		f)
-#echo "file"
 			FILENAMES="${FILENAMES},$OPTARG"
 			;;
 		v)
 			VERBOSE='yes'
 			;;
 		x)
-#echo "apa"
 			DRYRUN='yes'
 			;;
 		?)
@@ -67,9 +64,7 @@ EOF
 			;;
 
 		esac
-#echo "OPTIND: $OPTIND"
 	done
-##echo "OPTIND: $OPTIND"
 	shift $(($OPTIND - 1))
 
 	FILENAMES=${FILENAMES-""}

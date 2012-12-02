@@ -16,18 +16,21 @@ function tmpname() {
 }
 
 function tmpname_cleanup() {
-	rm  $(getvar VAR_MAINDIR)/$(getvar VAR_SUBDIR)/$(getvar VAR_FULL_TMPNAME_BASE)*
+	rm -f $(getvar VAR_MAINDIR)/$(getvar VAR_SUBDIR)/$(getvar VAR_FULL_TMPNAME_BASE)*
 }
 
 #Note: UI included even if included. This is not recommended practice in s3
 TMPNAME_SH_INFO=${TMPNAME_SH}
 source .futil.ui..tmpname.sh
-#tmpname_vars_init
 
 source s3.ebasename.sh
 if [ "$TMPNAME_SH" == $( ebasename $0 ) ]; then
 	#Not sourced, do something with this.
+
+	#Scan the option
 	tmpname_flags_init "$@"
+
+	#Note, shift outside of function seems mandatory
 	shift $(($OPTIND - 1))
 
 	tty -s; ATTY="$?"
@@ -40,7 +43,8 @@ if [ "$TMPNAME_SH" == $( ebasename $0 ) ]; then
 	exit $?
 else
 	tmpname_flags_init "$@"
-	#reset getopts builtin
+
+	#Reset getopts builtin so the sourcing shell can parse it's options
 	unset OPTARG
 	unset OPTIND
 fi

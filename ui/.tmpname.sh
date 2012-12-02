@@ -103,7 +103,7 @@ function tmpname_vars_init() {
 	set_default VAR_SUBDIR		$(getvar VAR_USER)
 
 	export ${VAR_FULL_TMPNAME_BASE}="$(getvar VAR_PROC)_$(getvar VAR_USER)_$(getvar VAR_TS)"
-	
+
 	if [ "X$(getvar VAR_AUTOINIT)" == "Xyes" ]; then
 		mkdir -p "$(getvar VAR_MAINDIR)/$(getvar VAR_SUBDIR)"
 	fi
@@ -143,13 +143,9 @@ function tmpname_flags_init() {
 
 		esac
 	done
-	#Don't not adjust positional parameter scanning if sourced
-	#Do that when we know we're not sourced
 	shift $(($OPTIND - 1))
 
 	tmpname_vars_init
-	#echo "$(getvar VAR_FULL_TMPNAME_BASE)"
-	#exit 0
 }
 
 
