@@ -11,7 +11,8 @@ ONFILE_SH="onfile.sh"
 function onfile() {
 	#echo "cmd: $@"
 	if [ "X$TMPNAME_SH" == "X" ]; then
-		source futil.tmpname.sh -a
+		source futil.tmpname.sh
+		tmpname_flags_init "-a"
 	fi
 
 	#echo "cmd: $@"
@@ -39,8 +40,13 @@ if [ "$ONFILE_SH" == $( ebasename $0 ) ]; then
 	#Not sourced, do something with this.
 
 	ONFILE_SH_INFO=${ONFILE_SH}
-	#source futil.tmpname.sh -a
+	source futil.tmpname.sh -a
+	#exit 0
+	#tmpname_flags_init "-a"
+
 	source .futil.ui..onfile.sh
+	#shift 1
+	#tmpname_flags_init "-a"
 
 	tty -s; ATTY="$?"
 	ISATTY="$ATTY -eq 0"
@@ -48,7 +54,7 @@ if [ "$ONFILE_SH" == $( ebasename $0 ) ]; then
 	set -e
 	#set -u
 
-	source futil.tmpname.sh -a
+	#source futil.tmpname.sh -a
 
 	FILENAME="-"
 	if [ "X$FILENAMES" != "X" ]; then
@@ -65,13 +71,20 @@ if [ "$ONFILE_SH" == $( ebasename $0 ) ]; then
 	fi
 	#shift 0
 	#echo "cmd: $@"
+	if [ "X${@}" == "X" ]; then
+		echo "$0 Syntax error: Command is mandatory" 1>&2
+		sleep 3
+		print_onfile_help
+		exit 1
+	fi
+
 	onfile "$@"
 
 	RC=$?
 
-	if [ $RC -eq 0 ]; then
-		tmpname_cleanup
-	fi
+	#if [ $RC -eq 0 ]; then
+		#tmpname_cleanup
+	#fi
 
 	exit $RC
 fi

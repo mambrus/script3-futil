@@ -22,22 +22,22 @@ would use the function tmpname to get a useful tempname. It's only argument
 (optional) is a suffix in case your script needs more temp-files than one.
 
 Options:
-  -a			Autoinit. Create tempdirs on beforehand if needed.
-  -t <timestamp>	Used in special cases to force a different timestamp.
-			Format is optional exept that is may not contain
-			whitespaces. Prefered format is same same as:
-			date +%y%m%d_%H%M%S.%N (i.e. [$(date +%y%m%d_%H%M%S.%N)])
-  -p <proc>		Used in special cases to force a different process
-			name.
-  -u <name>		Used in special cases to use a different username
-  -D <directory>	Set a main-directory to be prefixed. Default is
-			/tmp/\$0. One useful alternative is "/tmp". Note:
-			filename itself is unique enough.
-  -d <directory>	Set sub-directory to be prefixed. Default is your
-			username [$(whoami)]. One useful alternative is "../"
-			which puts all your tempfiles in the main directory (
-			see -D option). Note: filename itself is unique enough.
-  -h			This help
+  -a             Autoinit. Create tempdirs on beforehand if needed.
+  -t <timestamp> Used in special cases to force a different timestamp.
+                 Format is optional exept that is may not contain
+                 whitespaces. Prefered format is same same as:
+                 date +%y%m%d_%H%M%S.%N (i.e. [$(date +%y%m%d_%H%M%S.%N)])
+  -p <proc>      Used in special cases to force a different process
+                 name.
+  -u <name>      Used in special cases to use a different username
+  -D <dir>       Set a main-directory to be prefixed. Default is
+                 /tmp/\$0. One useful alternative is "/tmp". Note:
+                 filename itself is unique enough.
+  -d <dir>       Set sub-directory to be prefixed. Default is your
+                 username [$(whoami)]. One useful alternative is "../"
+                 which puts all your tempfiles in the main directory (
+                 see -D option). Note: filename itself is unique enough.
+  -h             This help
 
 Example:
   #In a script:
@@ -82,6 +82,7 @@ function getvar() {
 
 	#Needs to be broken down in two stages...
 	local THE_VAR=$(eval echo \$"${1}")
+	#export ${VAR_TS}=$(date +%y%m%d_%H%M%S.%N)
 	eval echo \$$THE_VAR
 }
 
@@ -93,6 +94,22 @@ function set_default() {
 	fi
 }
 
+function tmpname_vars_init() {
+	set_default VAR_AUTOINIT	"no"
+	set_default VAR_TS			$(date +%y%m%d_%H%M%S.%N)
+	set_default VAR_PROC		$(basename $0)
+	set_default VAR_USER		$(whoami)
+	set_default VAR_MAINDIR		/tmp
+	set_default VAR_SUBDIR		$(getvar VAR_USER)
+
+	export ${VAR_FULL_TMPNAME_BASE}="$(getvar VAR_PROC)_$(getvar VAR_USER)_$(getvar VAR_TS)"
+	
+	if [ "X$(getvar VAR_AUTOINIT)" == "Xyes" ]; then
+		mkdir -p "$(getvar VAR_MAINDIR)/$(getvar VAR_SUBDIR)"
+	fi
+}
+
+function tmpname_flags_init() {
 	while getopts at:p:u:d:D:h OPTION; do
 		case $OPTION in
 		h)
@@ -128,24 +145,11 @@ function set_default() {
 	done
 	#Don't not adjust positional parameter scanning if sourced
 	#Do that when we know we're not sourced
-	#shift $(($OPTIND - 1))
+	shift $(($OPTIND - 1))
 
-	#export ${VAR_TS}=${!VAR_TS - "$(date +%y%m%d_%H%M%S.%N)" }
-	#export ${VAR_TS}=$(date +%y%m%d_%H%M%S.%N)
-	set_default VAR_AUTOINIT	"no"
-	set_default VAR_TS		$(date +%y%m%d_%H%M%S.%N)
-	set_default VAR_PROC		$(basename $0)
-	set_default VAR_USER		$(whoami)
-	set_default VAR_MAINDIR		/tmp
-	set_default VAR_SUBDIR		$(getvar VAR_USER)
-
-
-	export ${VAR_FULL_TMPNAME_BASE}="$(getvar VAR_PROC)_$(getvar VAR_USER)_$(getvar VAR_TS)"
-
-	#echo ${$(echo ${VAR_TS})}
-	#echo ${!VAR_TS}
-	#eval echo \$$VAR_TS
-
-	#echo $(getvar VAR_TS)
+	tmpname_vars_init
+	#echo "$(getvar VAR_FULL_TMPNAME_BASE)"
+	#exit 0
+}
 
 
