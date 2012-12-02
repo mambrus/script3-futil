@@ -18,8 +18,10 @@ function onfile() {
 	#echo "$FILENAME"
 	cat $FILENAME | \
 	while read LINE; do
+		if [ "X${VERBOSE}" == "Xyes" ]; then
+			echo "$0 -f $LINE \"$@\""
+		fi
 		cat $LINE | bash -c "$@" > $(tmpname res)
-#echo "${DRYRUN}"
 		if [ "X${DRYRUN}" == "Xno" ]; then
 			cat $(tmpname res) > $LINE
 		else

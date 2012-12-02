@@ -16,27 +16,33 @@ Note: <any_command> must be able to take it's input from stdin for
 $ONFILE_SH_INFO to work.
 
 Options:
-  -f <filename>		Read input from this file instead of from stdin. Can
-			be given several time, or separated with "," if several
-			files are to be named. If filenames come from stdin,
-			this flag is not considered.
-  -x                    Dry-run. Don't write back to file, write to stdout.
-			Note that content will come from tempfile and it's
-			possible to pipe back to original file this way.
-  -h			This help
+  -f <filename> Read input from this file instead of from stdin. Can
+                be given several time, or separated with "," if several
+                files are to be named. If filenames come from stdin,
+                this flag is not considered.
+  -v            Verbose. Show each command on each file as it's processed.
+  -x            Dry-run. Don't write back to file, write to stdout.
+                Note that content will come from tempfile and it's
+                possible to pipe back to original file this way.
+  -h            This help
 
-Example:
+Examples:
   $ONFILE_SH_INFO -f file "sed 's/string1/string2/g'"
-  #replace "string1" with "string2" in file "file"
+  #Replace "string1" with "string2" in file "file"
 
-  find . -name "*.c" | \
+  find . -name "*.c" | \\
     $ONFILE_SH_INFO "sed 's/string1/string2/g' | sed 's/string3/string4/g'"
   #In each c-file, replace "string1" with "string2" and "string3" with "string4"
+
+  src.shgrep.sh '[[:space:]]+$' | cut -f1 -d":" | sort -u \\
+    futil.onfile.sh -v "sed -e 's/[[:space:]]+$//'"
+  #Notice why this is useful as regexp are slighly different. -v flag shows what
+  #is being done.
 
 EOF
 }
 #echo "X OPTIND: $OPTIND"
-	while getopts f:hx OPTION; do
+	while getopts f:hvx OPTION; do
 		case $OPTION in
 		h)
 			clear
@@ -46,6 +52,9 @@ EOF
 		f)
 #echo "file"
 			FILENAMES="${FILENAMES},$OPTARG"
+			;;
+		v)
+			VERBOSE='yes'
 			;;
 		x)
 #echo "apa"
@@ -65,5 +74,6 @@ EOF
 
 	FILENAMES=${FILENAMES-""}
 	DRYRUN=${DRYRUN-"no"}
+	VERBOSE=${VERBOSE-"no"}
 
 
