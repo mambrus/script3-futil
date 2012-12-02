@@ -47,11 +47,11 @@ EOF
 		print_find_help $0 1>&2
 		exit 2
 	fi
-	
+
 	if [ "X${START_DIR}" == "X" ]; then
 		START_DIR=$(pwd)
 	fi
-	
+
 	if [ "X${TYPE}" == "X" ]; then
 		TYPE="f"
 	fi

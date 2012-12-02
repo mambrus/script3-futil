@@ -19,13 +19,13 @@ purposes. I.e. we need a rule-based way of determining where they're stored.
 
 Normally you would not use any options, just include this script. Then you
 would use the function tmpname to get a useful tempname. It's only argument
-(optional) is a suffix in case your script needs more temp-files than one. 
+(optional) is a suffix in case your script needs more temp-files than one.
 
 Options:
   -a			Autoinit. Create tempdirs on beforehand if needed.
   -t <timestamp>	Used in special cases to force a different timestamp.
-			Format is optional exept that is may not contain 
-			whitespaces. Prefered format is same same as: 
+			Format is optional exept that is may not contain
+			whitespaces. Prefered format is same same as:
 			date +%y%m%d_%H%M%S.%N (i.e. [$(date +%y%m%d_%H%M%S.%N)])
   -p <proc>		Used in special cases to force a different process
 			name.
@@ -56,7 +56,7 @@ Example:
 
   tmpfname_cleanup
   #Clean-up filenames (special function)
-  
+
 EOF
 
 }
@@ -139,7 +139,7 @@ function set_default() {
 	set_default VAR_MAINDIR		/tmp
 	set_default VAR_SUBDIR		$(getvar VAR_USER)
 
-	
+
 	export ${VAR_FULL_TMPNAME_BASE}="$(getvar VAR_PROC)_$(getvar VAR_USER)_$(getvar VAR_TS)"
 
 	#echo ${$(echo ${VAR_TS})}

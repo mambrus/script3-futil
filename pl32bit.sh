@@ -16,7 +16,7 @@ if [ "$PL32BIT" == $( ebasename $0 ) ]; then
 	#Not sourced, do something with this.
 	tty -s; ATTY="$?"
 	ISATTY="$ATTY -eq 0"
-	
+
 	set -e
 	set -u
 

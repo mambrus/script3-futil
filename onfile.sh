@@ -13,7 +13,7 @@ function onfile() {
 	if [ "X$TMPNAME_SH" == "X" ]; then
 		source futil.tmpname.sh -a
 	fi
-	
+
 	#echo "cmd: $@"
 	#echo "$FILENAME"
 	cat $FILENAME | \
@@ -47,7 +47,7 @@ if [ "$ONFILE_SH" == $( ebasename $0 ) ]; then
 
 	set -e
 	#set -u
-	
+
 	source futil.tmpname.sh -a
 
 	FILENAME="-"

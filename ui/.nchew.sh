@@ -54,8 +54,8 @@ EOF
 		print_find_help $0 1>&2
 		exit 2
 	fi
-	
-	
+
+
 	CHEW_FROM=${CHEW_FROM-"l"}
 	PATTERN_TYPE=${PATTERN_TYPE-"s"}
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Author: Michael Ambrus (ambrmi09@gmail.com)
 # 2012-12-01
-# Figures out a suitable unique tempname 
+# Figures out a suitable unique tempname
 
 if [ -z $TMPNAME_SH ]; then
 
