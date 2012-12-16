@@ -45,8 +45,8 @@ Example:
   include $TMPNAME_SH_INFO -fmyproc
   #initializes $TMPNAME_SH_INFO
 
-  TMPF1=\$(tmpfname 1)
-  TMPF2=\$(tmpfname 2)
+  TMPF1=\$(tmpname 1)
+  TMPF2=\$(tmpname 2)
   #Creates variables for easier use (optional)
 
   echo "Hello " > \$TMPF1
@@ -54,7 +54,7 @@ Example:
   echo "\$(cat \$TMPF1) \$(cat \$TMPF2)"
   #Do suff with you temp-files
 
-  tmpfname_cleanup
+  tmpname_cleanup
   #Clean-up filenames (special function)
 
 EOF
