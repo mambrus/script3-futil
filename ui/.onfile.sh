@@ -16,10 +16,10 @@ Note: <any_command> must be able to take it's input from stdin for
 $ONFILE_SH_INFO to work.
 
 Options:
-  -f <filename> Read input from this file instead of from stdin. Can
-                be given several time, or separated with "," if several
-                files are to be named. If filenames come from stdin,
-                this flag is not considered.
+  -f <filename> Operate on this file-name instead of name(s) passed via stdin.
+                Can be given several times, or separated with "," if several
+                files are to be managed. If filenames come from stdin, this
+                flag is not considered.
   -v            Verbose. Show each command on each file as it's processed.
   -x            Dry-run. Don't write back to file, write to stdout.
                 Note that content will come from tempfile and it's
