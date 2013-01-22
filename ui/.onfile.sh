@@ -4,16 +4,23 @@
 
 function print_onfile_help() {
 			cat <<EOF
-Usage: $ONFILE_SH_INFO [options] -- <any_command> [<cmd_args>]
+Usage:
+   $ONFILE_SH_INFO [options] [--] <cmd> [<cmd_args>]
+   $ONFILE_SH_INFO [options] [--] "<cmd> [<cmd_args>] [ | <cmd> [<cmd_args>] ]"
 
 Use any command on a file. Typical usage would be for example a sed
 operation which needs to be fed back to the same file. Normaly you can't do
-that (not with any cammand i.e.). If you try for example this the file "afile"
+that (not with any command i.e.). If you try for example this the file "afile"
 will end up empty:
 sed -e 's/string1/string2/g' < afile > afile
 
-Note: <any_command> must be able to take it's input from stdin for
+
+Note: <cmd> must be able to take it's input from stdin for
 $ONFILE_SH_INFO to work.
+
+Note: If you need to pipe the operation on the file, you need to quote the
+complete chain of commands or the pipe will be a command terminator and result
+not what you intend.
 
 Options:
   -f <filename> Operate on this file-name instead of name(s) passed via stdin.
