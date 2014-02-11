@@ -40,7 +40,6 @@ TRGT_DIR=$(dirname ${1})
 mkdir -p \$TRGT_DIR
 cd \$TRGT_DIR
 time nc ${2} ${PORT} | pigz -\${NP} -d | tar xvf -
-#time nc ${2} ${PORT} | gunzip | tar xvf -
 
 EOF
 }
@@ -61,7 +60,10 @@ NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 TRGT_DIR=$(dirname ${1})
 mkdir -p \$TRGT_DIR
 cd \$TRGT_DIR
-time nc remote_ip ${PORT} | pigz -d | tar xvf -
+time nc ${2} ${PORT} | \
+	pigz -\${NP} -d | \
+	pv --size ${3} | \
+	tar xf -
 
 EOF
 }
@@ -86,7 +88,7 @@ function get_host() {
 	local HOST=$(
 		expr match "${1}" '\(.*:\)' | \
 		sed -E 's/.*@//' | sed -E 's/:$//')
-	
+
 	if [ "X${HOST}" == "X" ]; then
 		local HOST="localhost"
 	fi
@@ -126,7 +128,7 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	echo "Initializing $SUSER@$SHOST" ...
 	ssh ${SUSER}@${SHOST} mkdir -p /tmp/$USER
 	SSIZE=$(ssh ${SUSER}@${SHOST} du -sb $SPATH | awk '{print $1}')
-	
+
 	echo "Initializing $RUSER@$RHOST" ...
 	ssh ${RUSER}@${RHOST} mkdir -p /tmp/$USER
 
@@ -135,7 +137,7 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	print_send_script $SPATH  | \
 		ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}"
 	ssh ${SUSER}@${SHOST} "chmod a+x ${SENDSCRIPT}"
-	
+
 	echo "Transferring receive-script to $RUSER@$RHOST"...
 	echo "  ($RECSCRIPT)"
 	if [ $SHOW_PROGRESS == "yes" ]; then
@@ -151,11 +153,16 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	echo "Starting send-script $SUSER@$SHOST"...
 	echo "  screen -rd $SENDSCREEN"
 	screen -dmS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
-	
+
 	echo "Starting receive-script $RUSER@$RHOST"...
 	ssh ${RUSER}@${RHOST} ${RECSCRIPT}
 
-	#tmpname_cleanup
+	echo "Tidying up send-script $SUSER@$SHOST"...
+	echo "  ($SENDSCRIPT)"
+	ssh ${SUSER}@${SHOST} "rm ${SENDSCRIPT}"
+	echo "Tidying up receive-script $RUSER@$RHOST"...
+	echo "  ($RECSCRIPT)"
+	ssh ${RUSER}@${RHOST} "rm ${RECSCRIPT}"
 
 	exit $?
 fi
