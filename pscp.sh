@@ -62,7 +62,7 @@ mkdir -p \$TRGT_DIR
 cd \$TRGT_DIR
 time nc ${2} ${PORT} | \
 	pigz -\${NP} -d | \
-	pv --size ${3} | \
+	pv -f --size ${3} | \
 	tar xf -
 
 EOF
@@ -155,7 +155,7 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	screen -dmS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
 
 	echo "Starting receive-script $RUSER@$RHOST"...
-	ssh ${RUSER}@${RHOST} ${RECSCRIPT}
+	ssh ${RUSER}@${RHOST} "export TERM=$TERM; ${RECSCRIPT}"
 
 	echo "Tidying up send-script $SUSER@$SHOST"...
 	echo "  ($SENDSCRIPT)"
