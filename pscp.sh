@@ -36,7 +36,14 @@ set -e
 #Determine number of CPU:s on this host
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
-TRGT_DIR=$(dirname ${1})
+#Determine if path ends with a '/', i.e. is a directory.
+EC=\$(echo "${1}" | sed -E 's/(.*)(.)$/\2/')
+
+if [ "X\$EC" != "X/" ]; then
+	TRGT_DIR=$(dirname ${1})
+else
+	TRGT_DIR=${1}
+fi
 mkdir -p \$TRGT_DIR
 cd \$TRGT_DIR
 time nc ${2} ${PORT} | pigz -\${NP} -d | tar xvf -
@@ -57,7 +64,14 @@ set -e
 #Determine number of CPU:s on this host
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
-TRGT_DIR=$(dirname ${1})
+#Determine if path ends with a '/', i.e. is a directory.
+EC=\$(echo "${1}" | sed -E 's/(.*)(.)$/\2/')
+
+if [ "X\$EC" != "X/" ]; then
+	TRGT_DIR=$(dirname ${1})
+else
+	TRGT_DIR=${1}
+fi
 mkdir -p \$TRGT_DIR
 cd \$TRGT_DIR
 time nc ${2} ${PORT} | \
@@ -67,7 +81,6 @@ time nc ${2} ${PORT} | \
 
 EOF
 }
-
 
 # Functions below get host, user, path parts out from scp syntax. I.e from
 # user@hostr:path respective part is extracted, with sane fall-backs if any
@@ -97,8 +110,9 @@ function get_host() {
 
 # Returns PATH part, or "." if none is given
 function get_path() {
-	local PATH=$(expr "${1}" : '.*:\(.*\)')
+	local PATH=$(echo "${1}" | cut -f2 -d":")
 	if [ "X${PATH}" == "X" ]; then
+		echo "Warning: Path can't be determined. Assigning default: \".\"" 1>&2
 		local PATH="."
 	fi
 	echo $PATH
@@ -125,6 +139,11 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	RHOST=$(get_host $2)
 	RPATH=$(get_path $2)
 
+	if [ $SHOW_PROGRESS == "yes" ]; then
+		echo "Copy from ${SUSER}@${SHOST}:${SPATH}"\
+			"to: ${RUSER}@${RHOST}:${RPATH}"
+	fi
+
 	echo "Initializing $SUSER@$SHOST" ...
 	ssh ${SUSER}@${SHOST} mkdir -p /tmp/$USER
 	SSIZE=$(ssh ${SUSER}@${SHOST} du -sb $SPATH | awk '{print $1}')
@@ -148,7 +167,6 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}"
 	fi
 	ssh ${RUSER}@${RHOST} "chmod a+x ${RECSCRIPT}"
-
 
 	echo "Starting send-script $SUSER@$SHOST"...
 	echo "  screen -rd $SENDSCREEN"
