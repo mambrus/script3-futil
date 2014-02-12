@@ -16,10 +16,23 @@ set -e
 #Determine number of CPU:s on this host
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
-echo "Running PIGZ transfer..."
-echo "tar -c $1 | pigz -\${NP} | nc -l ${PORT}"
+#Determine if path ends with a '/', i.e. is a directory.
+EC=\$(echo "${1}" | sed -E 's/(.*)(.)$/\2/')
 
-tar -c $1 | pigz -\${NP} | nc -l ${PORT}
+#if [ "X\$EC" != "X/" ]; then
+#	SRC_DIR=$(dirname ${1})
+#else
+	SRC_DIR=$(echo ${1} | sed -e 's/\/$//')
+#fi
+echo "cd \$SRC_DIR/.."
+cd "\$SRC_DIR/.."
+
+SRC=\$(echo \$SRC_DIR | sed -e 's/.*\///')
+
+echo "Running PIGZ transfer..."
+echo "tar -c \${SRC} | pigz -\${NP} | nc -l ${PORT}"
+
+tar -c \${SRC} | pigz -\${NP} | nc -l ${PORT}
 
 EOF
 }
@@ -39,11 +52,12 @@ NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 #Determine if path ends with a '/', i.e. is a directory.
 EC=\$(echo "${1}" | sed -E 's/(.*)(.)$/\2/')
 
-if [ "X\$EC" != "X/" ]; then
-	TRGT_DIR=$(dirname ${1})
-else
-	TRGT_DIR=${1}
-fi
+#if [ "X\$EC" != "X/" ]; then
+#	TRGT_DIR=$(dirname ${1})
+#else
+	TRGT_DIR=$(echo ${1} | sed -e 's/\/$//')
+	#TRGT_DIR=${1}
+#fi
 mkdir -p \$TRGT_DIR
 cd \$TRGT_DIR
 time nc ${2} ${PORT} | pigz -\${NP} -d | tar xvf -
@@ -67,11 +81,12 @@ NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 #Determine if path ends with a '/', i.e. is a directory.
 EC=\$(echo "${1}" | sed -E 's/(.*)(.)$/\2/')
 
-if [ "X\$EC" != "X/" ]; then
-	TRGT_DIR=$(dirname ${1})
-else
-	TRGT_DIR=${1}
-fi
+#if [ "X\$EC" != "X/" ]; then
+#	TRGT_DIR=$(dirname ${1})
+#else
+	TRGT_DIR=$(echo ${1} | sed -e 's/\/$//')
+#	TRGT_DIR=${1}
+#fi
 mkdir -p \$TRGT_DIR
 cd \$TRGT_DIR
 time nc ${2} ${PORT} | \
@@ -103,7 +118,7 @@ function get_host() {
 		sed -E 's/.*@//' | sed -E 's/:$//')
 
 	if [ "X${HOST}" == "X" ]; then
-		local HOST="localhost"
+		local HOST="127.0.0.1"
 	fi
 	echo $HOST
 }
@@ -145,6 +160,24 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	RHOST=$(get_host $2)
 	RPATH=$(get_path $2)
 
+	THIS_PATH=$(pwd)
+	CHEWED_PATH=$(futil.nchew.sh -dl -ts $HOME $THIS_PATH)
+	if [ "X${THIS_PATH}" != "X${CHEWED_PATH}" ]; then
+		# Invokers path is relative his $HOME, fix it a little
+		STAND_PATH=$(echo "${CHEWED_PATH}" | sed -E 's/^\///')
+	else
+		STAND_PATH="${CHEWED_PATH}"
+	fi
+
+	# If not absolute paths and not explicit relative "~",Prepend STAND_PATH
+	# to them
+	if [ $(expr index "${SPATH}" "/") != "1" -a $(expr index "${SPATH}" "~") != "1" ]; then
+		SPATH="${STAND_PATH}/${SPATH}"
+	fi
+	if [ $(expr index "${RPATH}" "/") != "1" -a $(expr index "${RPATH}" "~") != "1" ]; then
+		RPATH="${STAND_PATH}/${RPATH}"
+	fi
+
 	if [ $SHOW_PROGRESS == "yes" ]; then
 		echo "Copy from ${SUSER}@${SHOST}:${SPATH}"\
 			"to: ${RUSER}@${RHOST}:${RPATH}"
@@ -174,6 +207,7 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	fi
 	ssh ${RUSER}@${RHOST} "chmod a+x ${RECSCRIPT}"
 
+	exit 0
 	info "Starting send-script $SUSER@$SHOST"...
 	info "  screen -rd $SENDSCREEN"
 	screen -dmS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
