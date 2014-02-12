@@ -23,6 +23,8 @@ Options:
   -h                This help
   -p                Show progress info
   -P                Use port (defaut is $DEF_PORT)
+  -v N              Be verbose. N is a number 0-3, where 0 is silent and 3
+                    is extra verbose and includes debug information.
 
 Example:
   $PSCP_SH_INFO user@host:/absolute/path relative/path
@@ -30,7 +32,7 @@ Example:
 
 EOF
 }
-	while getopts ph OPTION; do
+	while getopts pP:v:h OPTION; do
 		case $OPTION in
 		h)
 			clear
@@ -40,8 +42,11 @@ EOF
 		p)
 			SHOW_PROGRESS='yes'
 			;;
-		p)
+		P)
 			PORT=$OPTARG
+			;;
+		v)
+			VERBOSE=$OPTARG
 			;;
 		?)
 			echo "Syntax error:" 1>&2
@@ -62,5 +67,6 @@ EOF
 
 	SHOW_PROGRESS=${SHOW_PROGRESS-"no"}
 	PORT=${PORT-"$DEF_PORT"}
+	VERBOSE=${VERBOSE-"0"}
 
 

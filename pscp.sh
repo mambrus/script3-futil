@@ -118,6 +118,12 @@ function get_path() {
 	echo $PATH
 }
 
+function info() {
+	if [ "X${VERBOSE}" != "X0" ]; then
+		echo "$(date '+%D %T') " "${@}"
+	fi
+}
+
 source s3.ebasename.sh
 if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	#Not sourced, do something with this.
@@ -144,21 +150,21 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 			"to: ${RUSER}@${RHOST}:${RPATH}"
 	fi
 
-	echo "Initializing $SUSER@$SHOST" ...
+	info "Initializing $SUSER@$SHOST" ...
 	ssh ${SUSER}@${SHOST} mkdir -p /tmp/$USER
 	SSIZE=$(ssh ${SUSER}@${SHOST} du -sb $SPATH | awk '{print $1}')
 
-	echo "Initializing $RUSER@$RHOST" ...
+	info "Initializing $RUSER@$RHOST" ...
 	ssh ${RUSER}@${RHOST} mkdir -p /tmp/$USER
 
-	echo "Transferring send-script $SUSER@$SHOST"...
-	echo "  ($SENDSCRIPT)"
+	info "Transferring send-script $SUSER@$SHOST"...
+	info "  ($SENDSCRIPT)"
 	print_send_script $SPATH  | \
 		ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}"
 	ssh ${SUSER}@${SHOST} "chmod a+x ${SENDSCRIPT}"
 
-	echo "Transferring receive-script to $RUSER@$RHOST"...
-	echo "  ($RECSCRIPT)"
+	info "Transferring receive-script to $RUSER@$RHOST"...
+	info "  ($RECSCRIPT)"
 	if [ $SHOW_PROGRESS == "yes" ]; then
 		print_receive_script_ETA $RPATH $SHOST $SSIZE| \
 			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}"
@@ -168,19 +174,19 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	fi
 	ssh ${RUSER}@${RHOST} "chmod a+x ${RECSCRIPT}"
 
-	echo "Starting send-script $SUSER@$SHOST"...
-	echo "  screen -rd $SENDSCREEN"
+	info "Starting send-script $SUSER@$SHOST"...
+	info "  screen -rd $SENDSCREEN"
 	screen -dmS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
 
-	echo "Starting receive-script $RUSER@$RHOST"...
+	info "Starting receive-script $RUSER@$RHOST"...
 	ssh ${RUSER}@${RHOST} "export TERM=$TERM; ${RECSCRIPT}"
 
-	echo "Tidying up send-script $SUSER@$SHOST"...
-	echo "  ($SENDSCRIPT)"
+	info "Tidying up send-script $SUSER@$SHOST"...
+	info "  ($SENDSCRIPT)"
 	ssh ${SUSER}@${SHOST} "rm ${SENDSCRIPT}"
-	echo "Tidying up receive-script $RUSER@$RHOST"...
-	echo "  ($RECSCRIPT)"
-	ssh ${RUSER}@${RHOST} "rm ${RECSCRIPT}"
+	info "Tidying up receive-script $RUSER@$RHOST"...
+	info "  ($RECSCRIPT)"
+	info ${RUSER}@${RHOST} "rm ${RECSCRIPT}"
 
 	exit $?
 fi
