@@ -164,14 +164,18 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	ssh ${SUSER}@${SHOST} mkdir -p /tmp/$USER
 	SSIZE=$(ssh ${SUSER}@${SHOST} du -sb $SPATH | awk '{print $1}')
 
-	info "Initializing $RUSER@$RHOST" ...
-	ssh ${RUSER}@${RHOST} mkdir -p /tmp/$USER
-
 	info "Transferring send-script $SUSER@$SHOST"...
 	info "  ($SENDSCRIPT)"
 	print_send_script $SPATH  | \
 		ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}"
 	ssh ${SUSER}@${SHOST} "chmod a+x ${SENDSCRIPT}"
+
+	info "Starting send-script $SUSER@$SHOST"...
+	info "  screen -rd $SENDSCREEN"
+	screen -dmS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
+
+	info "Initializing $RUSER@$RHOST" ...
+	ssh ${RUSER}@${RHOST} mkdir -p /tmp/$USER
 
 	info "Transferring receive-script to $RUSER@$RHOST"...
 	info "  ($RECSCRIPT)"
@@ -183,11 +187,6 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}"
 	fi
 	ssh ${RUSER}@${RHOST} "chmod a+x ${RECSCRIPT}"
-
-	exit 0
-	info "Starting send-script $SUSER@$SHOST"...
-	info "  screen -rd $SENDSCREEN"
-	screen -dmS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
 
 	info "Starting receive-script $RUSER@$RHOST"...
 	ssh ${RUSER}@${RHOST} "export TERM=$TERM; ${RECSCRIPT}"
