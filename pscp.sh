@@ -16,14 +16,7 @@ set -e
 #Determine number of CPU:s on this host
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
-#Determine if path ends with a '/', i.e. is a directory.
-EC=\$(echo "${1}" | sed -E 's/(.*)(.)$/\2/')
-
-#if [ "X\$EC" != "X/" ]; then
-#	SRC_DIR=$(dirname ${1})
-#else
-	SRC_DIR=$(echo ${1} | sed -e 's/\/$//')
-#fi
+SRC_DIR=$(echo ${1} | sed -e 's/\/$//')
 echo "cd \$SRC_DIR/.."
 cd "\$SRC_DIR/.."
 
@@ -49,15 +42,7 @@ set -e
 #Determine number of CPU:s on this host
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
-#Determine if path ends with a '/', i.e. is a directory.
-EC=\$(echo "${1}" | sed -E 's/(.*)(.)$/\2/')
-
-#if [ "X\$EC" != "X/" ]; then
-#	TRGT_DIR=$(dirname ${1})
-#else
-	TRGT_DIR=$(echo ${1} | sed -e 's/\/$//')
-	#TRGT_DIR=${1}
-#fi
+TRGT_DIR=$(echo ${1} | sed -e 's/\/$//')
 mkdir -p \$TRGT_DIR
 cd \$TRGT_DIR
 time nc ${2} ${PORT} | pigz -\${NP} -d | tar xvf -
@@ -78,15 +63,7 @@ set -e
 #Determine number of CPU:s on this host
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
-#Determine if path ends with a '/', i.e. is a directory.
-EC=\$(echo "${1}" | sed -E 's/(.*)(.)$/\2/')
-
-#if [ "X\$EC" != "X/" ]; then
-#	TRGT_DIR=$(dirname ${1})
-#else
-	TRGT_DIR=$(echo ${1} | sed -e 's/\/$//')
-#	TRGT_DIR=${1}
-#fi
+TRGT_DIR=$(echo ${1} | sed -e 's/\/$//')
 mkdir -p \$TRGT_DIR
 cd \$TRGT_DIR
 time nc ${2} ${PORT} | \
