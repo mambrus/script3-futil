@@ -30,7 +30,6 @@ EOF
 	while getopts f:h OPTION; do
 		case $OPTION in
 		h)
-			clear
 			print_pline_help $0
 			exit 0
 			;;
