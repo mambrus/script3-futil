@@ -166,18 +166,26 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	CHEWED_PATH=$(futil.nchew.sh -dl -ts $HOME $THIS_PATH)
 	if [ "X${THIS_PATH}" != "X${CHEWED_PATH}" ]; then
 		# Invokers path is relative his $HOME, fix it a little
+		info 3 "(A)"
 		STAND_PATH=$(echo "${CHEWED_PATH}" | sed -E 's/^\///')
 	else
+		info 3 "(B)"
 		STAND_PATH="${CHEWED_PATH}"
 	fi
+	info 3 "THIS_PATH: $THIS_PATH"
+	info 3 "STAND_PATH: $STAND_PATH"
 
 	# If not absolute paths and not explicit relative "~",Prepend STAND_PATH
-	# to them
+	# to them, except if in $HOME itself.
 	if [ $(expr index "${SPATH}" "/") != "1" -a $(expr index "${SPATH}" "~") != "1" ]; then
-		SPATH="${STAND_PATH}/${SPATH}"
+		if [ "X${STAND_PATH}" != "X" ]; then
+			SPATH="${STAND_PATH}/${SPATH}"
+		fi
 	fi
 	if [ $(expr index "${RPATH}" "/") != "1" -a $(expr index "${RPATH}" "~") != "1" ]; then
-		RPATH="${STAND_PATH}/${RPATH}"
+		if [ "X${STAND_PATH}" != "X" ]; then
+			RPATH="${STAND_PATH}/${RPATH}"
+		fi
 	fi
 
 	if [ $SHOW_PROGRESS == "yes" ]; then
@@ -193,31 +201,47 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 
 	info 2 "Transferring send-script $SUSER@$SHOST"...
 	info 2 "  ($SENDSCRIPT)"
+	info 3 "  Local copy: ${SENDSCRIPT}.local"
 	print_send_script $SPATH  | \
 		ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}"
 	ssh ${SUSER}@${SHOST} "chmod a+x ${SENDSCRIPT}"
+	print_send_script $SPATH > ${SENDSCRIPT}.local
 
 	info 2 "Starting send-script $SUSER@$SHOST"...
 	info 2 "  screen -rd $SENDSCREEN"
-	screen -dmS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
+	rm -f screenlog.[0-9]
+	screen -dmLS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
 
 	info 2 "Initializing $RUSER@$RHOST" ...
 	ssh ${RUSER}@${RHOST} mkdir -p /tmp/$USER
 
 	info 2 "Transferring receive-script to $RUSER@$RHOST"...
 	info 2 "  ($RECSCRIPT)"
+	info 3 "  Local copy: ${RECSCRIPT}.local"
 	if [ $SHOW_PROGRESS == "yes" ]; then
 		print_receive_script_ETA $RPATH $SHOST $SSIZE| \
 			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}"
+		print_receive_script_ETA $RPATH $SHOST $SSIZE > ${RECSCRIPT}.local
 	else
 		print_receive_script_simple $RPATH $SHOST | \
 			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}"
+		print_receive_script_simple $RPATH $SHOST > ${RECSCRIPT}.local
 	fi
 	ssh ${RUSER}@${RHOST} "chmod a+x ${RECSCRIPT}"
 
+	info 3 "Before start receiving, confirm send-script is up and running"
+	if [ "X$(screen -ls | grep $SENDSCREEN)" == "X" ]; then
+		info 0 "Sending encountered error"
+		cat screenlog.[0-9] | while read LINE; do
+			info 0 "$LINE"
+		done
+		exit 1
+	fi
 	info 2 "Starting receive-script $RUSER@$RHOST"...
 	ssh ${RUSER}@${RHOST} "export TERM=$TERM; ${RECSCRIPT}"
 
+	rm ${RECSCRIPT}.local
+	rm ${SENDSCRIPT}.local
 	info 2 "Tidying up send-script $SUSER@$SHOST"...
 	info "  ($SENDSCRIPT)"
 	ssh ${SUSER}@${SHOST} "rm ${SENDSCRIPT}"
