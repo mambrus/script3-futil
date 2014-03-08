@@ -218,14 +218,22 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	info 2 "Transferring receive-script to $RUSER@$RHOST"...
 	info 2 "  ($RECSCRIPT)"
 	info 3 "  Local copy: ${RECSCRIPT}.local"
+
+	SSHOST=$SHOST;
+	if [ "X${SSHOST}" == "X127.0.0.1" ]; then
+		info 2 "Localhost IP cant be used for server name"
+		info 2 "  Trying to deduct FQDN..."
+		SSHOST=$(host hornet | cut -f1 -d" ");
+		info 2 "FQDN-\$SHOST=$SSHOST"
+	fi
 	if [ $SHOW_PROGRESS == "yes" ]; then
-		print_receive_script_ETA $RPATH $SHOST $SSIZE| \
+		print_receive_script_ETA $RPATH $SSHOST $SSIZE| \
 			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}"
-		print_receive_script_ETA $RPATH $SHOST $SSIZE > ${RECSCRIPT}.local
+		print_receive_script_ETA $RPATH $SSHOST $SSIZE > ${RECSCRIPT}.local
 	else
-		print_receive_script_simple $RPATH $SHOST | \
+		print_receive_script_simple $RPATH $SSHOST | \
 			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}"
-		print_receive_script_simple $RPATH $SHOST > ${RECSCRIPT}.local
+		print_receive_script_simple $RPATH $SSHOST > ${RECSCRIPT}.local
 	fi
 	ssh ${RUSER}@${RHOST} "chmod a+x ${RECSCRIPT}"
 
