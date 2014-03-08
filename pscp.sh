@@ -74,6 +74,29 @@ time nc ${2} ${PORT} | \
 EOF
 }
 
+function info() {
+	local DEBUG_LVL="${1}"
+	local OUTS="${2}"
+
+	if [ $DEBUG_LVL == "-1" ]; then
+		echo ">>>>: $(date '+%D %T') " "${OUTS}"
+	elif [ $DEBUG_LVL == "0" ]; then
+		local PRFX="ERR"
+	elif [ $DEBUG_LVL == "1" ]; then
+		local PRFX="WARN"
+	elif [ $DEBUG_LVL == "2" ]; then
+		local PRFX="INFO"
+	elif [ $DEBUG_LVL == "3" ]; then
+		local PRFX="DBG"
+	else
+		local PRFX="UNKN"
+	fi
+
+	if [ $(( $VERBOSE >= $DEBUG_LVL )) ]; then
+		echo "$(date '+%y-%m-%d %T.%N') ${PRFX}:" "${OUTS}"
+	fi
+}
+
 # Functions below get host, user, path parts out from scp syntax. I.e from
 # user@hostr:path respective part is extracted, with sane fall-backs if any
 # part is missing.
@@ -102,18 +125,12 @@ function get_host() {
 
 # Returns PATH part, or "." if none is given
 function get_path() {
-	local PATH=$(echo "${1}" | cut -f2 -d":")
-	if [ "X${PATH}" == "X" ]; then
-		echo "Warning: Path can't be determined. Assigning default: \".\"" 1>&2
-		local PATH="."
+	local LPATH=$(echo "${1}" | cut -f2 -d":")
+	if [ "X${LPATH}" == "X" ]; then
+		info 1 "Path can't be determined. Assigning default: \".\"" 1>&2
+		local LPATH="."
 	fi
-	echo $PATH
-}
-
-function info() {
-	if [ "X${VERBOSE}" != "X0" ]; then
-		echo "$(date '+%D %T') " "${@}"
-	fi
+	echo $LPATH
 }
 
 source s3.ebasename.sh
@@ -137,6 +154,14 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	RHOST=$(get_host $2)
 	RPATH=$(get_path $2)
 
+	info 3 "Initial meaning of parsed SRC/DST"
+	info 3 "SRC-USER: $SUSER"
+	info 3 "SRC-HOST: $SHOST"
+	info 3 "SRC-PATH: $SPATH"
+	info 3 "DST-USER: $RUSER"
+	info 3 "DST-HOST: $RHOST"
+	info 3 "DST-PATH: $RPATH"
+
 	THIS_PATH=$(pwd)
 	CHEWED_PATH=$(futil.nchew.sh -dl -ts $HOME $THIS_PATH)
 	if [ "X${THIS_PATH}" != "X${CHEWED_PATH}" ]; then
@@ -156,29 +181,31 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	fi
 
 	if [ $SHOW_PROGRESS == "yes" ]; then
-		echo "Copy from ${SUSER}@${SHOST}:${SPATH}"\
-			"to: ${RUSER}@${RHOST}:${RPATH}"
+		info 2 "Copy from ${SUSER}@${SHOST}:${SPATH} to: ${RUSER}@${RHOST}:${RPATH}"
 	fi
+	info 3 "Final meaning of parsed SRC/DST"
+	info 3 "  SRC:${SUSER}@${SHOST}:${SPATH}"
+	info 3 "  DST:${RUSER}@${RHOST}:${RPATH}"
 
-	info "Initializing $SUSER@$SHOST" ...
+	info 2 "Initializing $SUSER@$SHOST" ...
 	ssh ${SUSER}@${SHOST} mkdir -p /tmp/$USER
 	SSIZE=$(ssh ${SUSER}@${SHOST} du -sb $SPATH | awk '{print $1}')
 
-	info "Transferring send-script $SUSER@$SHOST"...
-	info "  ($SENDSCRIPT)"
+	info 2 "Transferring send-script $SUSER@$SHOST"...
+	info 2 "  ($SENDSCRIPT)"
 	print_send_script $SPATH  | \
 		ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}"
 	ssh ${SUSER}@${SHOST} "chmod a+x ${SENDSCRIPT}"
 
-	info "Starting send-script $SUSER@$SHOST"...
-	info "  screen -rd $SENDSCREEN"
+	info 2 "Starting send-script $SUSER@$SHOST"...
+	info 2 "  screen -rd $SENDSCREEN"
 	screen -dmS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
 
-	info "Initializing $RUSER@$RHOST" ...
+	info 2 "Initializing $RUSER@$RHOST" ...
 	ssh ${RUSER}@${RHOST} mkdir -p /tmp/$USER
 
-	info "Transferring receive-script to $RUSER@$RHOST"...
-	info "  ($RECSCRIPT)"
+	info 2 "Transferring receive-script to $RUSER@$RHOST"...
+	info 2 "  ($RECSCRIPT)"
 	if [ $SHOW_PROGRESS == "yes" ]; then
 		print_receive_script_ETA $RPATH $SHOST $SSIZE| \
 			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}"
@@ -188,15 +215,15 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	fi
 	ssh ${RUSER}@${RHOST} "chmod a+x ${RECSCRIPT}"
 
-	info "Starting receive-script $RUSER@$RHOST"...
+	info 2 "Starting receive-script $RUSER@$RHOST"...
 	ssh ${RUSER}@${RHOST} "export TERM=$TERM; ${RECSCRIPT}"
 
-	info "Tidying up send-script $SUSER@$SHOST"...
+	info 2 "Tidying up send-script $SUSER@$SHOST"...
 	info "  ($SENDSCRIPT)"
 	ssh ${SUSER}@${SHOST} "rm ${SENDSCRIPT}"
-	info "Tidying up receive-script $RUSER@$RHOST"...
-	info "  ($RECSCRIPT)"
-	info ${RUSER}@${RHOST} "rm ${RECSCRIPT}"
+	info 2 "Tidying up receive-script $RUSER@$RHOST"...
+	info 2 "  ($RECSCRIPT)"
+	info 2 ${RUSER}@${RHOST} "rm ${RECSCRIPT}"
 
 	exit $?
 fi
