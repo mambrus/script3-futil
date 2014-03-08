@@ -203,8 +203,7 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	info 2 "  ($SENDSCRIPT)"
 	info 3 "  Local copy: ${SENDSCRIPT}.local"
 	print_send_script $SPATH  | \
-		ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}"
-	ssh ${SUSER}@${SHOST} "chmod a+x ${SENDSCRIPT}"
+		ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
 	print_send_script $SPATH > ${SENDSCRIPT}.local
 
 	info 2 "Starting send-script $SUSER@$SHOST"...
@@ -228,14 +227,13 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	fi
 	if [ $SHOW_PROGRESS == "yes" ]; then
 		print_receive_script_ETA $RPATH $SSHOST $SSIZE| \
-			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}"
+			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
 		print_receive_script_ETA $RPATH $SSHOST $SSIZE > ${RECSCRIPT}.local
 	else
 		print_receive_script_simple $RPATH $SSHOST | \
-			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}"
+			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
 		print_receive_script_simple $RPATH $SSHOST > ${RECSCRIPT}.local
 	fi
-	ssh ${RUSER}@${RHOST} "chmod a+x ${RECSCRIPT}"
 
 	info 3 "Before start receiving, confirm send-script is up and running"
 	if [ "X$(screen -ls | grep $SENDSCREEN)" == "X" ]; then
