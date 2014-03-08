@@ -105,7 +105,7 @@ $(echo -e ${FONT_BOLD}DEFAULTS${FONT_NONE})
 $(echo -e ${FONT_BOLD}OPTIONS${FONT_NONE})
 
   -h                This help
-  -p                Show progress info
+  -x                Inhibit progress info (can help terminfo issues)
   -P                Use port (defaut is $DEF_PORT)
   -v N              Be verbose. N is a number 0-3, where 0 is silent and 3
                     is extra verbose and includes debug information.
@@ -152,14 +152,14 @@ $(echo -e ${FONT_BOLD}SEE ALSO${FONT_NONE})
 GNU script3 16.7.121-032bb              Mars 2014                $CMD_STR(7)
 EOF
 }
-	while getopts pP:v:h OPTION; do
+	while getopts xP:v:h OPTION; do
 		case $OPTION in
 		h)
 			print_pscp_help $0
 			exit 0
 			;;
-		p)
-			SHOW_PROGRESS='yes'
+		x)
+			SHOW_PROGRESS='no'
 			;;
 		P)
 			PORT=$OPTARG
@@ -184,7 +184,7 @@ EOF
 		exit 2
 	fi
 
-	SHOW_PROGRESS=${SHOW_PROGRESS-"no"}
+	SHOW_PROGRESS=${SHOW_PROGRESS-"yes"}
 	PORT=${PORT-"$DEF_PORT"}
 	VERBOSE=${VERBOSE-"-1"}
 
