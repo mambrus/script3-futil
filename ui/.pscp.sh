@@ -74,8 +74,8 @@ $(echo -e ${FONT_BOLD}OVERVIEW${FONT_NONE})
 
         In many cases the increase doen't mean much, but if your transfer
         takes 1hr with scp, there's definitly a difference as pscp will save
-        you a day (!). ${FONT_BOLD}Note however:${FONT_NONE} This is for \
-transfers where the content
+        you a full day. $(echo -e ${FONT_UNDERLINE}Note however:${FONT_NONE}) \
+This is for transfers where the content
         either doesn't matter much, or the network is end-to-end trusted.
         The latter would be the case if you transfer large amount of data
         between two computers on for example a LAN.
@@ -114,26 +114,42 @@ transfers where the content
               file copy will occur.
 
             DST:
-              Ending with '/' for file in DST ${FONT_BOLD}does
-              matter${FONT_NONE}. If SRC was a directory and if DST ends with
+              Ending with '/' for file in DST $(echo -e ${FONT_UNDERLINE}does \
+matter${FONT_NONE}).
+              If SRC was a directory and if DST ends with
               '/', the whole given path will be regarded as a sub-path. If
               it doesn't end with '/', the destination will be named verbatim
               as given on command-line.
 
         RELATIVE PATH DEDUCTION:
             $CMD_STR will try to figure out what you bean based on a few
-            rules. If any "file" resides within \$HOME ${FONT_BOLD}when you
-            invoke the script${FONT_NONE}, it will be transformed into
-            corresponding \$HOME relative path on either remote.
+            rules. If any "file" resides within \$HOME $(echo -e ${FONT_UNDERLINE}when you
+            invoke the script${FONT_NONE}), it will be
+            transformed into corresponding \$HOME relative path on either
+            remote.
 
             However, if relative paths are given when you stand outside
             \$HOME in which case path will be expanded/translated to
             localhost:s corresponding meaning.
 
-            $(echo -e ${FONT_BOLD}Note:${FONT_NONE})
-              When using relative paths, especially outside \$HOME, be very
+            $(echo -e ${FONT_UNDERLINE}NOTE:${FONT_NONE})
+              When using relative paths, especially ouside \$HOME, be very
               careful to check that the corresponding path is valid on the
               remote.
+
+            One thing that differs greatly is how destination path is
+            deducted for relative paths. Besides form user user@host: part,
+            pscp has a behavior more similar to cp than to scp. I.e,
+            DST= user@host:. does $(echo -e ${FONT_UNDERLINE}NOT${FONT_NONE}) \
+mean the same thing.
+            In pscp it means relatively from where you stand on the mashine
+            you invoked pscp from, whereas in scp the same thing means from
+            where the ssh login shell drops you (usually \$HOME). To be more
+            explicit about where you want your DST to go use the \
+$(echo -e ${FONT_BOLD}~${FONT_NONE} character).
+            Furthermore '~' means the same in both scp and pscp,
+            user@host:~/whatever is relative \$HOME (whatever that turns out
+            to be) in both cases.
 
 $(echo -e ${FONT_BOLD}DEFAULTS${FONT_NONE})
         This program figures out certain defaults dynamically. Most notably
@@ -144,6 +160,10 @@ $(echo -e ${FONT_BOLD}DEFAULTS${FONT_NONE})
         SRC given relatively is first evaluated against the PID:s \$HOME. If
         it lays within that, and if DST does not start with '/', then final
         destination path will be constructed against the DST users \$HOME.
+        If you're uncertain how the expansion works, use -v2 for INF output
+        and look for the two lines under the string: $(echo -e ${FONT_UNDERLINE}"Final \
+meaning of parsed
+        SRC/DST".${FONT_NONE})
 
 $(echo -e ${FONT_BOLD}AUTHOR${FONT_NONE})
         Written by Michael Ambrus.
@@ -158,7 +178,7 @@ $(echo -e ${FONT_BOLD}CAVEATS AND QUIRKS${FONT_NONE})
         ${CMD_STR} depends on a few sub-commands/sub-tools but it will make
         a check for these on both SRC and DST before staring to operate and
         try to evaluate existence and valid versions/variants.
-        Note that ${CMD_STR} is very picky on which ${FONT_BOLD}netcat\
+        Note that ${CMD_STR} is very picky on ${FONT_UNDERLINE}which netcat\
         ${FONT_NONE} is used.
         It's only the BSD version that operates the way ${CMD_STR} want's it
         too.
@@ -192,7 +212,11 @@ EOF
 	while getopts xrp:v:h OPTION; do
 		case $OPTION in
 		h)
+		if [ -t 1 ]; then
+			print_pscp_help $0 | less -R
+		else
 			print_pscp_help $0
+		fi
 			exit 0
 			;;
 		x)
