@@ -374,13 +374,13 @@ function backdoor_transfer() {
 		info 2 "FQDN-\$RHOST=$RRHOST"
 	fi
 	if [ $SHOW_PROGRESS == "yes" ]; then
-		echo_send_script_ETA_bd $RPATH $RRHOST $SSIZE| \
+		echo_send_script_ETA_bd $SPATH $RRHOST $SSIZE| \
 			ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
-		echo_send_script_ETA_bd $RPATH $RRHOST $SSIZE > ${SENDSCRIPT}.local
+		echo_send_script_ETA_bd $SPATH $RRHOST $SSIZE > ${SENDSCRIPT}.local
 	else
-		echo_send_script_simple_bd $RPATH $RRHOST | \
+		echo_send_script_simple_bd $SPATH $RRHOST | \
 			ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
-		echo_send_script_simple_bd $RPATH $RRHOST > ${SENDSCRIPT}.local
+		echo_send_script_simple_bd $SPATH $RRHOST > ${SENDSCRIPT}.local
 	fi
 
 	info 3 "Before start sending, confirm receive-script is up and running"
@@ -488,10 +488,10 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	#FINI: Cleanup locally and remotely
 	info 2 "Tidying up send-script $SUSER@$SHOST"...
 	info 2 "  ($SENDSCRIPT)"
-	ssh ${SUSER}@${SHOST} "rm ${SENDSCRIPT}"
+	ssh ${SUSER}@${SHOST} "rm ${SENDSCRIPT}" | info 2
 	info 2 "Tidying up receive-script $RUSER@$RHOST"...
 	info 2 "  ($RECSCRIPT)"
-	info 2 ${RUSER}@${RHOST} "rm ${RECSCRIPT}"
+	info 2 ${RUSER}@${RHOST} "rm ${RECSCRIPT}" | info 2
 	rm -f ${RECSCRIPT}.local
 	rm -f ${SENDSCRIPT}.local
 	rm -f ${INITSCRIPT}.local
