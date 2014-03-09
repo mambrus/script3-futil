@@ -164,6 +164,9 @@ EOF
 		P)
 			PORT=$OPTARG
 			;;
+		R)
+			REVERSED="yes"
+			;;
 		v)
 			VERBOSE=$OPTARG
 			;;
@@ -185,7 +188,8 @@ EOF
 	fi
 
 	SHOW_PROGRESS=${SHOW_PROGRESS-"yes"}
+	REVERSED=${REVERSED-"no"}
 	PORT=${PORT-"$DEF_PORT"}
-	VERBOSE=${VERBOSE-"-1"}
+	VERBOSE=${VERBOSE-"0"}
 
 

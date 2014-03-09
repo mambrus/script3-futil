@@ -6,6 +6,7 @@ if [ -z $PSCP_SH ]; then
 
 PSCP_SH="pscp.sh"
 
+#- Forward version of the remote scripts --------------------------------------
 #Echo the sending script
 #Function takes one argument, the path
 function print_send_script() {
@@ -74,6 +75,73 @@ time nc ${2} ${PORT} | \
 EOF
 }
 
+#- Reversed versions of the remote scripts ------------------------------------
+#Echo the sending script
+function print_send_script_simple_bd() {
+cat <<EOF
+#!/bin/bash
+set -e
+
+#Determine number of CPU:s on this host
+NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
+
+SRC_DIR=$(echo ${1} | sed -e 's/\/$//')
+echo "cd \$SRC_DIR/.."
+cd "\$SRC_DIR/.."
+
+SRC=\$(echo \$SRC_DIR | sed -e 's/.*\///')
+
+echo "Running PIGZ transfer..."
+echo "tar -c \${SRC} | pigz -\${NP} | nc ${2} ${PORT}"
+
+time tar -c \${SRC} | pigz -\${NP} | nc ${2} ${PORT}
+
+EOF
+}
+
+#Echo the sending script
+function print_send_script_ETA_bd() {
+cat <<EOF
+#!/bin/bash
+set -e
+
+#Determine number of CPU:s on this host
+NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
+
+SRC_DIR=$(echo ${1} | sed -e 's/\/$//')
+echo "cd \$SRC_DIR/.."
+cd "\$SRC_DIR/.."
+
+SRC=\$(echo \$SRC_DIR | sed -e 's/.*\///')
+
+echo "Running PIGZ transfer..."
+echo "tar -c \${SRC} | pv -f --size ${3} | pigz -\${NP} | nc ${2} ${PORT}"
+
+time tar -c \${SRC} | 
+	pv -f --size ${3} | \
+	pigz -\${NP} | \
+	nc ${2} ${PORT}
+
+EOF
+}
+
+#Echo the receiving script, simple version
+function print_receive_script_bd() {
+cat <<EOF
+#!/bin/bash
+set -e
+
+#Determine number of CPU:s on this host
+NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
+
+TRGT_DIR=$(echo ${1} | sed -e 's/\/$//')
+mkdir -p \$TRGT_DIR
+cd \$TRGT_DIR
+nc ${2} -l ${PORT} | pigz -\${NP} -d | tar xvf -
+
+EOF
+}
+
 function info() {
 	local DEBUG_LVL="${1}"
 	local OUTS="${2}"
@@ -92,7 +160,7 @@ function info() {
 		local PRFX="UNKN"
 	fi
 
-	if [ $(( $VERBOSE >= $DEBUG_LVL )) ]; then
+	if [ $(( VERBOSE >= DEBUG_LVL )) -eq 1 ]; then
 		echo "$(date '+%y-%m-%d %T.%N') ${PRFX}:" "${OUTS}"
 	fi
 }
@@ -133,6 +201,92 @@ function get_path() {
 	echo $LPATH
 }
 
+function forward_transfer() {
+	info 2 "Transferring send-script $SUSER@$SHOST"...
+	info 2 "  ($SENDSCRIPT)"
+	info 3 "  Local copy: ${SENDSCRIPT}.local"
+	print_send_script $SPATH  | \
+		ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
+	print_send_script $SPATH > ${SENDSCRIPT}.local
+
+	info 2 "Starting send-script $SUSER@$SHOST"...
+	info 2 "  screen -rd $SENDSCREEN"
+	rm -f screenlog.[0-9]
+	screen -dmLS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
+
+	info 2 "Transferring receive-script to $RUSER@$RHOST"...
+	info 2 "  ($RECSCRIPT)"
+	info 3 "  Local copy: ${RECSCRIPT}.local"
+
+	SSHOST=$SHOST;
+	if [ "X${SSHOST}" == "X127.0.0.1" ]; then
+		info 2 "Localhost IP cant be used for server name"
+		info 2 "  Trying to deduct FQDN..."
+		SSHOST=$(host hornet | cut -f1 -d" ");
+		info 2 "FQDN-\$SHOST=$SSHOST"
+	fi
+	if [ $SHOW_PROGRESS == "yes" ]; then
+		print_receive_script_ETA $RPATH $SSHOST $SSIZE| \
+			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
+		print_receive_script_ETA $RPATH $SSHOST $SSIZE > ${RECSCRIPT}.local
+	else
+		print_receive_script_simple $RPATH $SSHOST | \
+			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
+		print_receive_script_simple $RPATH $SSHOST > ${RECSCRIPT}.local
+	fi
+
+	info 3 "Before start receiving, confirm send-script is up and running"
+	if [ "X$(screen -ls | grep $SENDSCREEN)" == "X" ]; then
+		info 0 "Sending encountered error"
+		cat screenlog.[0-9] | while read LINE; do
+			info 0 "$LINE"
+		done
+		exit 1
+	fi
+	info 2 "Starting receive-script $RUSER@$RHOST"...
+	ssh ${RUSER}@${RHOST} "export TERM=$TERM; ${RECSCRIPT}"
+}
+
+function backdoor_transfer() {
+	info 2 "Transferring receive-script to $RUSER@$RHOST"...
+	info 2 "  ($RECSCRIPT)"
+	info 3 "  Local copy: ${RECSCRIPT}.local"
+
+	print_receive_script_bd $RPATH | \
+		ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
+	print_receive_script_bd $RPATH > ${RECSCRIPT}.local
+	
+	info 2 "Starting recieve-script $SUSER@$SHOST"
+	info 2 "  screen -rd $RECSCREEN"
+	rm -f screenlog.[0-9]
+	screen -dmLS $RECSCREEN ssh ${RUSER}@${RHOST} ${RECSCRIPT}
+	
+	info 2 "Transferring send-script $SUSER@$SHOST"...
+	info 2 "  ($SENDSCRIPT)"
+	info 3 "  Local copy: ${SENDSCRIPT}.local"
+	
+	if [ $SHOW_PROGRESS == "yes" ]; then
+		print_send_script_ETA_bd $RPATH $SSHOST $SSIZE| \
+			ssh ${RUSER}@${RHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
+		print_send_script_ETA_bd $RPATH $SSHOST $SSIZE > ${SENDSCRIPT}.local
+	else
+		print_send_script_simple_bd $RPATH $SSHOST | \
+			ssh ${RUSER}@${RHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
+		print_send_script_simple_bd $RPATH $SSHOST > ${SENDSCRIPT}.local
+	fi
+
+	info 3 "Before start rending, confirm receive-script is up and running"
+	if [ "X$(screen -ls | grep $RECSCREEN)" == "X" ]; then
+		info 0 "Sending encountered error"
+		cat screenlog.[0-9] | while read LINE; do
+			info 0 "$LINE"
+		done
+		exit 1
+	fi
+	info 2 "Starting send-script $SUSER@$SHOST"...
+	ssh ${SUSER}@${SHOST} "export TERM=$TERM; ${SENDSCRIPT}"
+}
+
 source s3.ebasename.sh
 if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	#Not sourced, do something with this.
@@ -142,6 +296,7 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	source futil.tmpname.sh
 	SENDSCRIPT=$(tmpname send.sh)
 	SENDSCREEN=$(tmpname sending | sed -E 's/^.*\///')
+	RECSCREEN=$(tmpname receiving | sed -E 's/^.*\///')
 	RECSCRIPT=$(tmpname rec.sh)
 
 	set -e
@@ -198,53 +353,14 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	info 2 "Initializing $SUSER@$SHOST" ...
 	ssh ${SUSER}@${SHOST} mkdir -p /tmp/$USER
 	SSIZE=$(ssh ${SUSER}@${SHOST} du -sb $SPATH | awk '{print $1}')
-
-	info 2 "Transferring send-script $SUSER@$SHOST"...
-	info 2 "  ($SENDSCRIPT)"
-	info 3 "  Local copy: ${SENDSCRIPT}.local"
-	print_send_script $SPATH  | \
-		ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
-	print_send_script $SPATH > ${SENDSCRIPT}.local
-
-	info 2 "Starting send-script $SUSER@$SHOST"...
-	info 2 "  screen -rd $SENDSCREEN"
-	rm -f screenlog.[0-9]
-	screen -dmLS $SENDSCREEN ssh ${SUSER}@${SHOST} ${SENDSCRIPT}
-
 	info 2 "Initializing $RUSER@$RHOST" ...
 	ssh ${RUSER}@${RHOST} mkdir -p /tmp/$USER
 
-	info 2 "Transferring receive-script to $RUSER@$RHOST"...
-	info 2 "  ($RECSCRIPT)"
-	info 3 "  Local copy: ${RECSCRIPT}.local"
-
-	SSHOST=$SHOST;
-	if [ "X${SSHOST}" == "X127.0.0.1" ]; then
-		info 2 "Localhost IP cant be used for server name"
-		info 2 "  Trying to deduct FQDN..."
-		SSHOST=$(host hornet | cut -f1 -d" ");
-		info 2 "FQDN-\$SHOST=$SSHOST"
-	fi
-	if [ $SHOW_PROGRESS == "yes" ]; then
-		print_receive_script_ETA $RPATH $SSHOST $SSIZE| \
-			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
-		print_receive_script_ETA $RPATH $SSHOST $SSIZE > ${RECSCRIPT}.local
+	if [ "X${REVERSED}" == "Xno" ]; then
+		forward_transfer
 	else
-		print_receive_script_simple $RPATH $SSHOST | \
-			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
-		print_receive_script_simple $RPATH $SSHOST > ${RECSCRIPT}.local
+		backdoor_transfer
 	fi
-
-	info 3 "Before start receiving, confirm send-script is up and running"
-	if [ "X$(screen -ls | grep $SENDSCREEN)" == "X" ]; then
-		info 0 "Sending encountered error"
-		cat screenlog.[0-9] | while read LINE; do
-			info 0 "$LINE"
-		done
-		exit 1
-	fi
-	info 2 "Starting receive-script $RUSER@$RHOST"...
-	ssh ${RUSER}@${RHOST} "export TERM=$TERM; ${RECSCRIPT}"
 
 	rm ${RECSCRIPT}.local
 	rm ${SENDSCRIPT}.local
