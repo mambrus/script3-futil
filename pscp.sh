@@ -109,13 +109,14 @@ set -e
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
 SRC_DIR=$(echo ${1} | sed -e 's/\/$//')
-echo "cd \$SRC_DIR/.."
+test $(( VERBOSE >= 2 )) -eq 1 && echo "cd \$SRC_DIR/.."
 cd "\$SRC_DIR/.."
 
 SRC=\$(echo \$SRC_DIR | sed -e 's/.*\///')
 
-echo "Running PIGZ transfer..."
-echo "tar -c \${SRC} | pv -f --size ${3} | pigz -\${NP} | nc ${2} ${PORT}"
+test $(( VERBOSE >= 2 )) -eq 1 && echo "Running PIGZ transfer..."
+test $(( VERBOSE >= 2 )) -eq 1 && \
+	echo "tar -c \${SRC} | pv -f --size ${3} | pigz -\${NP} | nc ${2} ${PORT}"
 
 time tar -c \${SRC} |
 	pv -f --size ${3} | \
@@ -135,9 +136,14 @@ set -e
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
 TRGT_DIR=$(echo ${1} | sed -e 's/\/$//')
+
+echo "mkdir -p \$TRGT_DIR"
 mkdir -p \$TRGT_DIR
+
+echo "cd \$TRGT_DIR"
 cd \$TRGT_DIR
-nc ${2} -l ${PORT} | pigz -\${NP} -d | tar xvf -
+echo "nc -l ${PORT} | pigz -\${NP} -d | tar xvf -"
+nc -l ${PORT} | pigz -\${NP} -d | tar xvf -
 
 EOF
 }
@@ -221,7 +227,7 @@ function info() {
 		local PRFX="DBG"
 	elif [ $DEBUG_LVL == "4" ]; then
 		local PRFX="REMO"
-		local DEBUG_LVL="2"
+		local DEBUG_LVL="3"
 	else
 		local PRFX="UNKN"
 	fi
@@ -268,14 +274,19 @@ function get_path() {
 }
 
 #Try to figure out why service died.
+#Arg1: user@host
 function serverr_self_anayse () {
+	local UATH=${1}
+
+	info 1 "Self analyzing ${UATH}"
+
 	cat screenlog.[0-9] | info 0
-	if [ "X$(tail -n1 screenlog.[0-9] | grep 'Address already in use')" \
+	if [ "X$(grep 'Address already in use' screenlog.[0-9])" \
 		!= "X" ]; then
 		info 0 "Offender (netstat -tlnp;ps -lp \$PID):"
-		(netstat -tlnp 2>&1) | grep ${PORT} | info 0
+		ssh ${UATH} "netstat -tlnp 2>&1" | grep ${PORT} | info 0
 		local PID=$(
-			(netstat -tlnp 2>&1) | \
+			ssh ${UATH} "netstat -tlnp 2>&1" | \
 			grep ${PORT} | \
 			tail -n1 | \
 			awk '{print $7}' |\
@@ -286,9 +297,9 @@ function serverr_self_anayse () {
 			info 0 "** No PID associated with port. Offender"\
 				"is a system daemon"
 		else
-			ps -lp $PID | info 0
+			ssh ${UATH} ps -lp $PID | info 0
 			info 0 "If nc is hogging a port, but no transfer is running,"\
-				"consider 'killal nc'"
+				"consider 'ssh ${UATH} killall nc'"
 		fi
 	fi
 }
@@ -330,7 +341,7 @@ function forward_transfer() {
 	info 3 "Before start receiving, confirm send-script is up and running"
 	if [ "X$(screen -ls | grep $SENDSCREEN)" == "X" ]; then
 		info 0 "Sending servlet encountered error:"
-		serverr_self_anayse
+		serverr_self_anayse "${SUSER}@${SHOST}"
 		exit 1
 	fi
 	info 2 "Starting receive-script $RUSER@$RHOST"...
@@ -355,20 +366,27 @@ function backdoor_transfer() {
 	info 2 "  ($SENDSCRIPT)"
 	info 3 "  Local copy: ${SENDSCRIPT}.local"
 
+	RRHOST=$RHOST;
+	if [ "X${RRHOST}" == "X127.0.0.1" ]; then
+		info 2 "Localhost IP cant be used for server name"
+		info 2 "  Trying to deduct FQDN..."
+		RRHOST=$(host hornet | cut -f1 -d" ");
+		info 2 "FQDN-\$RHOST=$RRHOST"
+	fi
 	if [ $SHOW_PROGRESS == "yes" ]; then
-		echo_send_script_ETA_bd $RPATH $SSHOST $SSIZE| \
-			ssh ${RUSER}@${RHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
-		echo_send_script_ETA_bd $RPATH $SSHOST $SSIZE > ${SENDSCRIPT}.local
+		echo_send_script_ETA_bd $RPATH $RRHOST $SSIZE| \
+			ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
+		echo_send_script_ETA_bd $RPATH $RRHOST $SSIZE > ${SENDSCRIPT}.local
 	else
-		echo_send_script_simple_bd $RPATH $SSHOST | \
-			ssh ${RUSER}@${RHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
-		echo_send_script_simple_bd $RPATH $SSHOST > ${SENDSCRIPT}.local
+		echo_send_script_simple_bd $RPATH $RRHOST | \
+			ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
+		echo_send_script_simple_bd $RPATH $RRHOST > ${SENDSCRIPT}.local
 	fi
 
 	info 3 "Before start sending, confirm receive-script is up and running"
 	if [ "X$(screen -ls | grep $RECSCREEN)" == "X" ]; then
 		info 0 "Receiving servlet encountered error"
-		serverr_self_anayse
+		serverr_self_anayse "${RUSER}@${RHOST}"
 		exit 1
 	fi
 	info 2 "Starting send-script $SUSER@$SHOST"...
@@ -437,9 +455,9 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	if [ $SHOW_PROGRESS == "yes" ]; then
 		info 2 "Copy from ${SUSER}@${SHOST}:${SPATH} to: ${RUSER}@${RHOST}:${RPATH}"
 	fi
-	info 3 "Final meaning of parsed SRC/DST"
-	info 3 "  SRC:${SUSER}@${SHOST}:${SPATH}"
-	info 3 "  DST:${RUSER}@${RHOST}:${RPATH}"
+	info 2 "Final meaning of parsed SRC/DST"
+	info 2 "  SRC:${SUSER}@${SHOST}:${SPATH}"
+	info 2 "  DST:${RUSER}@${RHOST}:${RPATH}"
 
 	#INIT: Initialization and perquisites check stage
 	echo_remote_init > ${INITSCRIPT}.local
