@@ -9,7 +9,7 @@ PSCP_SH="pscp.sh"
 #- Forward version of the remote scripts --------------------------------------
 #Echo the sending script
 #Function takes one argument, the path
-function print_send_script() {
+function echo_send_script() {
 cat <<EOF
 #!/bin/bash
 set -e
@@ -35,7 +35,7 @@ EOF
 #Function takes the following arguments
 #1 The path
 #2 Host to receive data from
-function print_receive_script_simple() {
+function echo_receive_script_simple() {
 cat <<EOF
 #!/bin/bash
 set -e
@@ -56,7 +56,7 @@ EOF
 #1 The path
 #2 Host to receive data from
 #3 Total size to be received
-function print_receive_script_ETA() {
+function echo_receive_script_ETA() {
 cat <<EOF
 #!/bin/bash
 set -e
@@ -77,7 +77,7 @@ EOF
 
 #- Reversed versions of the remote scripts ------------------------------------
 #Echo the sending script
-function print_send_script_simple_bd() {
+function echo_send_script_simple_bd() {
 cat <<EOF
 #!/bin/bash
 set -e
@@ -100,7 +100,7 @@ EOF
 }
 
 #Echo the sending script
-function print_send_script_ETA_bd() {
+function echo_send_script_ETA_bd() {
 cat <<EOF
 #!/bin/bash
 set -e
@@ -125,8 +125,8 @@ time tar -c \${SRC} |
 EOF
 }
 
-#Echo the receiving script, simple version
-function print_receive_script_bd() {
+#Echo the receiving script
+function echo_receive_script_bd() {
 cat <<EOF
 #!/bin/bash
 set -e
@@ -142,9 +142,74 @@ nc ${2} -l ${PORT} | pigz -\${NP} -d | tar xvf -
 EOF
 }
 
+#- Init/Fini remote scripts ---------------------------------------------------
+# Initializes and checks prerequisites on remote machine
+function echo_remote_init() {
+cat <<EOF
+#!/bin/bash
+
+# Verbosely execute args (i.e. print and execute)
+# Returns: the error-code of the command if any.
+function pexec () {
+	echo "\${@}"
+	"\${@}"
+	return \$?
+}
+
+# On which-error, try run to get system to output more info
+# Returns: Nothing. Exits if invoked
+function try_run() {
+	bash -ic \${@} || exit \$?
+	exit 666
+}
+
+# Tests if binary is installed (in \$PATH), and if not
+# run it anyway to get more system leads of what to do
+# Returns:
+function texec() {
+	pexec which \${1} || try_run \${1}
+}
+
+#Either of the below should abort execution on failure
+echo "which bash"
+which bash || (echo "Bash is required"; exit 69)
+texec screen
+texec pigz
+texec host
+texec nc
+texec pv
+
+set -e
+echo "nc -v 2>&1 | head -n1 | grep 'netcat-openbsd'"
+nc -v 2>&1 | head -n1 | grep 'netcat-openbsd'
+pexec mkdir -p /tmp/\$USER
+
+EOF
+}
+
+# Clean-up on remote machine
+function echo_remote_fini() {
+cat <<EOF
+#!/bin/bash
+set -e
+
+EOF
+}
+
 function info() {
 	local DEBUG_LVL="${1}"
-	local OUTS="${2}"
+	if [ $# -eq 2 ]; then
+		shift
+		local OUTS="${@}"
+	elif [ $# -eq 1 ]; then
+		while read LINE; do
+			info "${DEBUG_LVL}" "${LINE-nil}"
+		done
+		return 0
+	else
+		echo "FATAL: Snytax error in function info" 1>&2
+		return -1
+	fi
 
 	if [ $DEBUG_LVL == "-1" ]; then
 		echo ">>>>: $(date '+%D %T') " "${OUTS}"
@@ -156,6 +221,9 @@ function info() {
 		local PRFX="INFO"
 	elif [ $DEBUG_LVL == "3" ]; then
 		local PRFX="DBG"
+	elif [ $DEBUG_LVL == "4" ]; then
+		local PRFX="REMO"
+		local DEBUG_LVL="2"
 	else
 		local PRFX="UNKN"
 	fi
@@ -205,9 +273,9 @@ function forward_transfer() {
 	info 2 "Transferring send-script $SUSER@$SHOST"...
 	info 2 "  ($SENDSCRIPT)"
 	info 3 "  Local copy: ${SENDSCRIPT}.local"
-	print_send_script $SPATH  | \
+	echo_send_script $SPATH  | \
 		ssh ${SUSER}@${SHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
-	print_send_script $SPATH > ${SENDSCRIPT}.local
+	echo_send_script $SPATH > ${SENDSCRIPT}.local
 
 	info 2 "Starting send-script $SUSER@$SHOST"...
 	info 2 "  screen -rd $SENDSCREEN"
@@ -226,13 +294,13 @@ function forward_transfer() {
 		info 2 "FQDN-\$SHOST=$SSHOST"
 	fi
 	if [ $SHOW_PROGRESS == "yes" ]; then
-		print_receive_script_ETA $RPATH $SSHOST $SSIZE| \
+		echo_receive_script_ETA $RPATH $SSHOST $SSIZE| \
 			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
-		print_receive_script_ETA $RPATH $SSHOST $SSIZE > ${RECSCRIPT}.local
+		echo_receive_script_ETA $RPATH $SSHOST $SSIZE > ${RECSCRIPT}.local
 	else
-		print_receive_script_simple $RPATH $SSHOST | \
+		echo_receive_script_simple $RPATH $SSHOST | \
 			ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
-		print_receive_script_simple $RPATH $SSHOST > ${RECSCRIPT}.local
+		echo_receive_script_simple $RPATH $SSHOST > ${RECSCRIPT}.local
 	fi
 
 	info 3 "Before start receiving, confirm send-script is up and running"
@@ -252,9 +320,9 @@ function backdoor_transfer() {
 	info 2 "  ($RECSCRIPT)"
 	info 3 "  Local copy: ${RECSCRIPT}.local"
 
-	print_receive_script_bd $RPATH | \
+	echo_receive_script_bd $RPATH | \
 		ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
-	print_receive_script_bd $RPATH > ${RECSCRIPT}.local
+	echo_receive_script_bd $RPATH > ${RECSCRIPT}.local
 	
 	info 2 "Starting recieve-script $SUSER@$SHOST"
 	info 2 "  screen -rd $RECSCREEN"
@@ -266,13 +334,13 @@ function backdoor_transfer() {
 	info 3 "  Local copy: ${SENDSCRIPT}.local"
 	
 	if [ $SHOW_PROGRESS == "yes" ]; then
-		print_send_script_ETA_bd $RPATH $SSHOST $SSIZE| \
+		echo_send_script_ETA_bd $RPATH $SSHOST $SSIZE| \
 			ssh ${RUSER}@${RHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
-		print_send_script_ETA_bd $RPATH $SSHOST $SSIZE > ${SENDSCRIPT}.local
+		echo_send_script_ETA_bd $RPATH $SSHOST $SSIZE > ${SENDSCRIPT}.local
 	else
-		print_send_script_simple_bd $RPATH $SSHOST | \
+		echo_send_script_simple_bd $RPATH $SSHOST | \
 			ssh ${RUSER}@${RHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
-		print_send_script_simple_bd $RPATH $SSHOST > ${SENDSCRIPT}.local
+		echo_send_script_simple_bd $RPATH $SSHOST > ${SENDSCRIPT}.local
 	fi
 
 	info 3 "Before start rending, confirm receive-script is up and running"
@@ -298,9 +366,12 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	SENDSCREEN=$(tmpname sending | sed -E 's/^.*\///')
 	RECSCREEN=$(tmpname receiving | sed -E 's/^.*\///')
 	RECSCRIPT=$(tmpname rec.sh)
+	INITSCRIPT=$(tmpname init.sh)
+	FINISCRIPT=$(tmpname fini.sh)
 
 	set -e
 	set -u
+	set -o pipefail
 
 	SUSER=$(get_user $1)
 	SHOST=$(get_host $1)
@@ -350,10 +421,23 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	info 3 "  SRC:${SUSER}@${SHOST}:${SPATH}"
 	info 3 "  DST:${RUSER}@${RHOST}:${RPATH}"
 
-	info 2 "Initializing $SUSER@$SHOST" ...
-	ssh ${SUSER}@${SHOST} mkdir -p /tmp/$USER
+	#Initialization and perquisites check stage
+	echo_remote_init > ${INITSCRIPT}.local
+	info 2 "Initializing and testing SRC: $SUSER@$SHOST with:"
+	info 2 "  ${INITSCRIPT}.local"
+	if ! cat ${INITSCRIPT}.local | ssh ${SUSER}@${SHOST} | info 4 ; then
+		RC=${PIPESTATUS[1]}
+		info 0 "Prerequisites check on SRC-mashine [${SHOST}] failed: ${RC}"
+		exit ${RC}
+	fi
 	SSIZE=$(ssh ${SUSER}@${SHOST} du -sb $SPATH | awk '{print $1}')
-	info 2 "Initializing $RUSER@$RHOST" ...
+	info 2 "Initializing and testing DST: $RUSER@$RHOST with:"
+	info 2 "  ${INITSCRIPT}.local"
+	if ! cat ${INITSCRIPT}.local | ssh ${RUSER}@${RHOST} | info 4 ; then
+		RC=${PIPESTATUS[1]}
+		info 0 "Prerequisites check on DST-mashine [${RHOST}] failed: ${RC}"
+		exit ${RC}
+	fi
 	ssh ${RUSER}@${RHOST} mkdir -p /tmp/$USER
 
 	if [ "X${REVERSED}" == "Xno" ]; then
@@ -362,8 +446,10 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 		backdoor_transfer
 	fi
 
-	rm ${RECSCRIPT}.local
-	rm ${SENDSCRIPT}.local
+	rm -f ${RECSCRIPT}.local
+	rm -f ${SENDSCRIPT}.local
+	rm -f ${INITSCRIPT}.local
+	rm -f ${FINISCRIPT}.local
 	info 2 "Tidying up send-script $SUSER@$SHOST"...
 	info "  ($SENDSCRIPT)"
 	ssh ${SUSER}@${SHOST} "rm ${SENDSCRIPT}"
