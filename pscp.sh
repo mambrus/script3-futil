@@ -441,41 +441,43 @@ if [ "$PSCP_SH" == $( ebasename $0 ) ]; then
 	info 3 "  SRC:${SUSER}@${SHOST}:${SPATH}"
 	info 3 "  DST:${RUSER}@${RHOST}:${RPATH}"
 
-	#Initialization and perquisites check stage
+	#INIT: Initialization and perquisites check stage
 	echo_remote_init > ${INITSCRIPT}.local
 	info 2 "Initializing and testing SRC: $SUSER@$SHOST with:"
 	info 2 "  ${INITSCRIPT}.local"
-	if ! cat ${INITSCRIPT}.local | ssh ${SUSER}@${SHOST} | info 4 ; then
+	if ! cat ${INITSCRIPT}.local | ssh ${SUSER}@${SHOST} -T | info 4 ; then
 		RC=${PIPESTATUS[1]}
-		info 0 "Prerequisites check on SRC-mashine [${SHOST}] failed: ${RC}"
+		info 0 "Prerequisites check on SRC-machine [${SHOST}] failed: ${RC}"
 		exit ${RC}
 	fi
 	SSIZE=$(ssh ${SUSER}@${SHOST} du -sb $SPATH | awk '{print $1}')
 	info 2 "Initializing and testing DST: $RUSER@$RHOST with:"
 	info 2 "  ${INITSCRIPT}.local"
-	if ! cat ${INITSCRIPT}.local | ssh ${RUSER}@${RHOST} | info 4 ; then
+	if ! cat ${INITSCRIPT}.local | ssh ${RUSER}@${RHOST} -T | info 4 ; then
 		RC=${PIPESTATUS[1]}
-		info 0 "Prerequisites check on DST-mashine [${RHOST}] failed: ${RC}"
+		info 0 "Prerequisites check on DST-machine [${RHOST}] failed: ${RC}"
 		exit ${RC}
 	fi
 	ssh ${RUSER}@${RHOST} mkdir -p /tmp/$USER
 
+	#The actual job stage
 	if [ "X${REVERSED}" == "Xno" ]; then
 		forward_transfer
 	else
 		backdoor_transfer
 	fi
 
-	rm -f ${RECSCRIPT}.local
-	rm -f ${SENDSCRIPT}.local
-	rm -f ${INITSCRIPT}.local
-	rm -f ${FINISCRIPT}.local
+	#FINI: Cleanup locally and remotely
 	info 2 "Tidying up send-script $SUSER@$SHOST"...
-	info "  ($SENDSCRIPT)"
+	info 2 "  ($SENDSCRIPT)"
 	ssh ${SUSER}@${SHOST} "rm ${SENDSCRIPT}"
 	info 2 "Tidying up receive-script $RUSER@$RHOST"...
 	info 2 "  ($RECSCRIPT)"
 	info 2 ${RUSER}@${RHOST} "rm ${RECSCRIPT}"
+	rm -f ${RECSCRIPT}.local
+	rm -f ${SENDSCRIPT}.local
+	rm -f ${INITSCRIPT}.local
+	rm -f ${FINISCRIPT}.local
 
 	exit $?
 fi

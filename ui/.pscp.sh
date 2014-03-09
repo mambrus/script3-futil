@@ -10,8 +10,9 @@ DEF_PORT=1447
 function print_pscp_help() {
 	local CMD_STR="$(basename ${0})"
 
-			cat <<EOF
+cat <<EOF
 $(print_man_header)
+
 $(echo -e ${FONT_BOLD}NAME${FONT_NONE})
         $CMD_STR - $(echo -e \
             "Fast, compressed (remote) copy between SRC and DST.")
@@ -23,10 +24,26 @@ $(echo -e ${FONT_BOLD}SYNOPSIS${FONT_NONE})
         $(echo -e ${FONT_BOLD}${CMD_STR}${FONT_NONE} [OPTIONS] \
         [[user@]host:]name1[/] [[user@]host:]name2)
 
+$(echo -e ${FONT_BOLD}OPTIONS${FONT_NONE})
+
+  -h    This help
+  -x    Inhibit progress info (can help terminfo issues)
+  -p    Use port (defaut is $DEF_PORT)
+  -r    Reversed mode. DST is made a sevice instead of SRC. This makes it
+        possible to send from SRC to DST when SRC is behind a firewall
+        without proxying or port FW.
+  -v N  Be verbose. N is a number 0-3, where 0 is silent and 3 is extra
+        verbose and includes debug information.
+
 $(echo -e ${FONT_BOLD}DESCRIPTION${FONT_NONE})
         Copy files between SRC and DSC, where either or both SRC and DST can
         be on remote mashines. It does what scp does but much faster and in
-        clear-text.
+        clear-text. An estimate of 300% speed improvement over scp, even
+        with ssh CompressionLevel 6 (-C6). Without compression it's much
+        worse even on a very fast network:
+        scp:  1m50.851s
+        pscp: 0m13.036s
+        ==> 836% speed increase
 
 $(echo -e ${FONT_BOLD}EXAMPLES${FONT_NONE})
         $(echo -e "${FONT_BOLD}${CMD_STR} user@host:/absolute/path "\
@@ -40,8 +57,34 @@ $(echo -e ${FONT_BOLD}OVERVIEW${FONT_NONE})
         amounts of files over slow or slowish networks. Exact use-case where
         this plays role vary, but if both ends of a copy are two strong
         machines the compression overhead are negligible. Speed improvement
-        can ideally be up to roughly 10xN, where N is the sending sides
-        number of CPU:s.
+        can idealy be up to 10xN, where N is the sending sides number of
+        CPU:s, provided A) network even with the compressed stream and B)
+        disks can keep up.
+
+        An estimate of 300% speed improvement over scp on average, ssh
+        CompressionLevel 6 (-C6). Most people forget compression for scp
+        and it's somewhat awkward to set up as it's enableability can be set
+        at several places. Without ssh compression, a test on a ~1GB
+        directory with various types of files on a very fast network showed
+        the following:
+
+        scp:  1m50.851s
+        pscp: 0m13.036s
+        ==> 836% speed increase
+
+        In many cases the increase doen't mean much, but if your transfer
+        takes 1hr with scp, there's definitly a difference as pscp will save
+        you a day (!). ${FONT_BOLD}Note however:${FONT_NONE} This is for \
+transfers where the content
+        either doesn't matter much, or the network is end-to-end trusted.
+        The latter would be the case if you transfer large amount of data
+        between two computers on for example a LAN.
+
+        Actually, what was limiting in comparison above were the disks as
+        the network (1Gbps) wasent nearly saturated. 85.8MB/s, thats faster
+        that the disks can copy files when borth SRC and DST is on the same
+        physical disc. As the network wasnt loaded much, compression alone
+        can't explain the difference.
 
         Note that this script does not use encryption. Besides from being
         compressed, files are sent in clear-text. ssh is used to transfer
@@ -97,18 +140,11 @@ $(echo -e ${FONT_BOLD}DEFAULTS${FONT_NONE})
         are the implicit user and final-path deductions for SRC and DST.
 
         The full source directory is based on where you currently stand. It
-        tries to do deduct relative patchs in an intelligent way, I.e. a
+        tries to do deduct relative paths in an intelligent way, I.e. a
         SRC given relatively is first evaluated against the PID:s \$HOME. If
         it lays within that, and if DST does not start with '/', then final
         destination path will be constructed against the DST users \$HOME.
 
-$(echo -e ${FONT_BOLD}OPTIONS${FONT_NONE})
-
-  -h                This help
-  -x                Inhibit progress info (can help terminfo issues)
-  -P                Use port (defaut is $DEF_PORT)
-  -v N              Be verbose. N is a number 0-3, where 0 is silent and 3
-                    is extra verbose and includes debug information.
 $(echo -e ${FONT_BOLD}AUTHOR${FONT_NONE})
         Written by Michael Ambrus.
 
@@ -149,10 +185,11 @@ $(echo -e ${FONT_BOLD}SEE ALSO${FONT_NONE})
 
        should give you access to the complete manual.
 
-GNU script3 16.7.121-032bb              Mars 2014                $CMD_STR(7)
+GNU script3 16.7.121-032bb              Mars 2014                \
+$(echo $CMD_STR | tr '[:lower:]' '[:upper:]')(7)
 EOF
 }
-	while getopts xP:v:h OPTION; do
+	while getopts xrp:v:h OPTION; do
 		case $OPTION in
 		h)
 			print_pscp_help $0
@@ -161,10 +198,10 @@ EOF
 		x)
 			SHOW_PROGRESS='no'
 			;;
-		P)
+		p)
 			PORT=$OPTARG
 			;;
-		R)
+		r)
 			REVERSED="yes"
 			;;
 		v)
