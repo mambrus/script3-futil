@@ -9,6 +9,8 @@ PSCP_SH="pscp.sh"
 #- Forward version of the remote scripts --------------------------------------
 #Echo the sending script
 #Function takes one argument, the path
+
+# ** stdout in screend servlet **
 function echo_send_script() {
 cat <<EOF
 #!/bin/bash
@@ -44,9 +46,16 @@ set -e
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
 TRGT_DIR=$(echo ${1} | sed -e 's/\/$//')
+
+test $(( VERBOSE >= 2 )) -eq 1 && echo "mkdir -p \$TRGT_DIR"
 mkdir -p \$TRGT_DIR
+
+test $(( VERBOSE >= 2 )) -eq 1 && echo "cd \$TRGT_DIR"
 cd \$TRGT_DIR
-time nc ${2} ${PORT} | pigz -\${NP} -d | tar xvf -
+
+test $(( VERBOSE >= 2 )) -eq 1 && \
+	echo "time nc ${2} ${PORT} | pigz -\${NP} -d | tar xf -"
+time nc ${2} ${PORT} | pigz -\${NP} -d | tar xf -
 
 EOF
 }
@@ -65,8 +74,16 @@ set -e
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
 TRGT_DIR=$(echo ${1} | sed -e 's/\/$//')
+
+test $(( VERBOSE >= 2 )) -eq 1 && echo "mkdir -p \$TRGT_DIR"
 mkdir -p \$TRGT_DIR
+
+test $(( VERBOSE >= 2 )) -eq 1 && echo "cd \$TRGT_DIR"
 cd \$TRGT_DIR
+
+test $(( VERBOSE >= 2 )) -eq 1 && \
+	echo "time nc ${2} ${PORT} | pigz -\${NP} -d | "\
+		"pv -f --size ${3} | tar xf -"
 time nc ${2} ${PORT} | \
 	pigz -\${NP} -d | \
 	pv -f --size ${3} | \
@@ -86,13 +103,15 @@ set -e
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
 SRC_DIR=$(echo ${1} | sed -e 's/\/$//')
-echo "cd \$SRC_DIR/.."
+
+test $(( VERBOSE >= 2 )) -eq 1 && echo "cd \$SRC_DIR/.."
 cd "\$SRC_DIR/.."
 
 SRC=\$(echo \$SRC_DIR | sed -e 's/.*\///')
 
-echo "Running PIGZ transfer..."
-echo "tar -c \${SRC} | pigz -\${NP} | nc ${2} ${PORT}"
+test $(( VERBOSE >= 2 )) -eq 1 && echo "Running PIGZ transfer..."
+test $(( VERBOSE >= 2 )) -eq 1 && \
+	echo "tar -c \${SRC} | pigz -\${NP} | nc ${2} ${PORT}"
 
 time tar -c \${SRC} | pigz -\${NP} | nc ${2} ${PORT}
 
@@ -109,6 +128,7 @@ set -e
 NP=\$(cat /proc/cpuinfo | grep processor | wc -l)
 
 SRC_DIR=$(echo ${1} | sed -e 's/\/$//')
+
 test $(( VERBOSE >= 2 )) -eq 1 && echo "cd \$SRC_DIR/.."
 cd "\$SRC_DIR/.."
 
@@ -127,6 +147,7 @@ EOF
 }
 
 #Echo the receiving script
+# ** stdout in screend servlet **
 function echo_receive_script_bd() {
 cat <<EOF
 #!/bin/bash
@@ -142,8 +163,8 @@ mkdir -p \$TRGT_DIR
 
 echo "cd \$TRGT_DIR"
 cd \$TRGT_DIR
-echo "nc -l ${PORT} | pigz -\${NP} -d | tar xvf -"
-nc -l ${PORT} | pigz -\${NP} -d | tar xvf -
+echo "nc -l ${PORT} | pigz -\${NP} -d | tar xf -"
+nc -l ${PORT} | pigz -\${NP} -d | tar xf -
 
 EOF
 }
