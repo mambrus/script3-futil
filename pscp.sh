@@ -117,7 +117,7 @@ SRC=\$(echo \$SRC_DIR | sed -e 's/.*\///')
 echo "Running PIGZ transfer..."
 echo "tar -c \${SRC} | pv -f --size ${3} | pigz -\${NP} | nc ${2} ${PORT}"
 
-time tar -c \${SRC} | 
+time tar -c \${SRC} |
 	pv -f --size ${3} | \
 	pigz -\${NP} | \
 	nc ${2} ${PORT}
@@ -178,6 +178,7 @@ texec pigz
 texec host
 texec nc
 texec pv
+texec netstat
 
 set -e
 echo "nc -v 2>&1 | head -n1 | grep 'netcat-openbsd'"
@@ -198,17 +199,14 @@ EOF
 
 function info() {
 	local DEBUG_LVL="${1}"
-	if [ $# -eq 2 ]; then
-		shift
-		local OUTS="${@}"
-	elif [ $# -eq 1 ]; then
+	if [ $# -eq 1 ]; then
 		while read LINE; do
 			info "${DEBUG_LVL}" "${LINE-nil}"
 		done
 		return 0
 	else
-		echo "FATAL: Snytax error in function info" 1>&2
-		return -1
+		shift
+		local OUTS="${@}"
 	fi
 
 	if [ $DEBUG_LVL == "-1" ]; then
@@ -269,6 +267,32 @@ function get_path() {
 	echo $LPATH
 }
 
+#Try to figure out why service died.
+function serverr_self_anayse () {
+	cat screenlog.[0-9] | info 0
+	if [ "X$(tail -n1 screenlog.[0-9] | grep 'Address already in use')" \
+		!= "X" ]; then
+		info 0 "Offender (netstat -tlnp;ps -lp \$PID):"
+		(netstat -tlnp 2>&1) | grep ${PORT} | info 0
+		local PID=$(
+			(netstat -tlnp 2>&1) | \
+			grep ${PORT} | \
+			tail -n1 | \
+			awk '{print $7}' |\
+			cut -f1 -d"/"
+		)
+		info 0 $PID
+		if [ "X${PID}" == "X" -o "X${PID}" == "X-" ]; then
+			info 0 "** No PID associated with port. Offender"\
+				"is a system daemon"
+		else
+			ps -lp $PID | info 0
+			info 0 "If nc is hogging a port, but no transfer is running,"\
+				"consider 'killal nc'"
+		fi
+	fi
+}
+
 function forward_transfer() {
 	info 2 "Transferring send-script $SUSER@$SHOST"...
 	info 2 "  ($SENDSCRIPT)"
@@ -305,10 +329,8 @@ function forward_transfer() {
 
 	info 3 "Before start receiving, confirm send-script is up and running"
 	if [ "X$(screen -ls | grep $SENDSCREEN)" == "X" ]; then
-		info 0 "Sending encountered error"
-		cat screenlog.[0-9] | while read LINE; do
-			info 0 "$LINE"
-		done
+		info 0 "Sending servlet encountered error:"
+		serverr_self_anayse
 		exit 1
 	fi
 	info 2 "Starting receive-script $RUSER@$RHOST"...
@@ -323,16 +345,16 @@ function backdoor_transfer() {
 	echo_receive_script_bd $RPATH | \
 		ssh ${RUSER}@${RHOST} "cat -- > ${RECSCRIPT}; chmod a+x ${RECSCRIPT}"
 	echo_receive_script_bd $RPATH > ${RECSCRIPT}.local
-	
+
 	info 2 "Starting recieve-script $SUSER@$SHOST"
 	info 2 "  screen -rd $RECSCREEN"
 	rm -f screenlog.[0-9]
 	screen -dmLS $RECSCREEN ssh ${RUSER}@${RHOST} ${RECSCRIPT}
-	
+
 	info 2 "Transferring send-script $SUSER@$SHOST"...
 	info 2 "  ($SENDSCRIPT)"
 	info 3 "  Local copy: ${SENDSCRIPT}.local"
-	
+
 	if [ $SHOW_PROGRESS == "yes" ]; then
 		echo_send_script_ETA_bd $RPATH $SSHOST $SSIZE| \
 			ssh ${RUSER}@${RHOST} "cat -- > ${SENDSCRIPT}; chmod a+x ${SENDSCRIPT}"
@@ -343,12 +365,10 @@ function backdoor_transfer() {
 		echo_send_script_simple_bd $RPATH $SSHOST > ${SENDSCRIPT}.local
 	fi
 
-	info 3 "Before start rending, confirm receive-script is up and running"
+	info 3 "Before start sending, confirm receive-script is up and running"
 	if [ "X$(screen -ls | grep $RECSCREEN)" == "X" ]; then
-		info 0 "Sending encountered error"
-		cat screenlog.[0-9] | while read LINE; do
-			info 0 "$LINE"
-		done
+		info 0 "Receiving servlet encountered error"
+		serverr_self_anayse
 		exit 1
 	fi
 	info 2 "Starting send-script $SUSER@$SHOST"...
